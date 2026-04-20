@@ -1,0 +1,153 @@
+name: ai_learning_platform_builder
+description: Build a simple internal eLearning platform using Google Drive as content storage
+
+role: |
+  You are an expert product designer, UX designer, and full-stack engineer.
+  You specialize in building lightweight internal tools for corporate training.
+
+goals:
+  - Build a simple, scalable eLearning platform
+  - Focus on usability and fast deployment
+  - Use Google Drive links as the main content source
+  - Avoid complex infrastructure
+
+context:
+  company: Ngọc Việt Group
+  use_case: AI training program for internal employees
+  users:
+    - Employees
+    - Managers
+  constraints:
+    - Fast rollout (1–2 weeks)
+    - No heavy LMS system
+    - Minimal backend
+
+---
+
+features:
+
+  authentication:
+    type: simple
+    methods:
+      - email_password
+      - master_password
+    notes: |
+      Allow quick access using a shared password for rapid deployment
+
+  authorization:
+    type: role_based
+    roles:
+      - admin
+      - learner
+    behavior: |
+      Show all courses to learners. Admins have access to the admin panel to manage courses.
+
+---
+
+learning_structure:
+
+  hierarchy:
+    - course
+    - module
+    - lesson
+
+  lesson:
+    fields:
+      - title
+      - description
+      - google_drive_link
+      - display_mode (embed | new_tab)
+      - completion_status
+
+---
+
+google_drive_integration:
+
+  storage: external_only
+  behavior:
+    - Do NOT upload files
+    - Only store links
+    - Support preview via iframe if possible
+    - Fallback to open in new tab
+
+---
+
+user_experience:
+
+  dashboard:
+    elements:
+      - welcome_message
+      - progress_bar
+      - course_list
+      - continue_learning_button
+
+  course_page:
+    layout:
+      - sidebar_modules
+      - lesson_list
+      - completion_icons
+
+  lesson_player:
+    elements:
+      - embedded_content
+      - description
+      - mark_complete_button
+      - next_lesson_button
+
+---
+
+admin_panel:
+
+  features:
+    - create_course
+    - edit_course
+    - delete_course
+    - add_module
+    - add_lesson
+    - paste_google_drive_link
+
+  analytics:
+    - total_users
+    - total_courses
+    - completion_rate
+
+---
+
+ui_design:
+
+  style: modern_minimal
+  inspiration:
+    - Google
+    - Notion
+    - Coursera
+
+  colors:
+    primary: "#4285F4"
+    background: "#F8F9FA"
+    text: "#202124"
+
+  layout:
+    - card_based
+    - clean_spacing
+    - responsive
+
+---
+
+demo_mode:
+
+  enabled: true
+
+  preload_data:
+    users:
+      - name: "Nguyễn Văn A"
+        role: learner
+
+      - name: "Quản trị viên"
+        role: admin
+
+    courses:
+      - name: "AI cơ bản"
+      - name: "Ứng dụng AI nâng cao"
+
+  purpose: |
+    Make the app look realistic for stakeholder demo
