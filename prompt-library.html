@@ -24,23 +24,20 @@
     body { background: var(--bg); color: var(--text); padding: 24px; }
     
     .header {
-      max-width: 1200px;
-      margin: 0 auto 24px auto;
-      text-align: center;
+      text-align: left;
     }
-    .header h1 { font-size: 2rem; margin-bottom: 8px; color: var(--primary-dark); }
-    .header p { color: var(--text-muted); }
+    .header h1 { font-size: 1.5rem; margin-bottom: 4px; color: var(--primary-dark); display: flex; align-items: center; gap: 10px; }
+    .header p { color: var(--text-muted); font-size: 0.9rem; }
 
     .controls {
-      max-width: 1200px;
-      margin: 0 auto 24px auto;
       display: flex;
-      gap: 16px;
+      gap: 12px;
       background: var(--surface);
-      padding: 16px;
+      padding: 12px;
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       flex-wrap: wrap;
+      align-items: center;
     }
 
     .search-box {
@@ -249,9 +246,25 @@
       top: 0;
       background: var(--bg);
       z-index: 100;
-      padding-top: 24px;
-      padding-bottom: 12px;
-      margin-top: -24px; /* Offset body padding */
+      padding: 16px 24px;
+      margin: -24px -24px 24px -24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .controls-wrapper {
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
     }
 
     /* Back to Top Button */
@@ -290,30 +303,34 @@
 <body>
 
   <div class="sticky-header">
-    <div class="header">
-      <h1>📚 Thư viện Prompt Thông minh</h1>
-      <p>Kho lưu trữ 100+ câu lệnh AI tối ưu cho mọi nghiệp vụ tại Ngọc Việt Group</p>
+    <div class="header-top">
+      <div class="header">
+        <h1>📚 Thư viện Prompt</h1>
+        <p>Kho lưu trữ câu lệnh AI tối ưu cho Ngọc Việt Group</p>
+      </div>
+      <button class="btn-add" onclick="openModal()" style="margin:0">+ Thêm Prompt</button>
     </div>
 
-    <div class="controls">
-      <div class="search-box">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="searchInput" placeholder="Tìm kiếm theo tên prompt, mục đích, nghiệp vụ...">
-      </div>
-      <div class="filter-box">
-        <select id="categoryFilter">
-          <option value="all">Tất cả Khối/Phòng ban</option>
-        </select>
-      </div>
-      <div class="filter-box">
-        <select id="formatFilter">
-          <option value="all">Tất cả định dạng</option>
-        </select>
-      </div>
-      <div class="view-toggle">
-        <button id="btnGrid" onclick="setView('grid')">🔲 Dạng Thẻ</button>
-        <button id="btnTable" class="active" onclick="setView('table')">📋 Dạng Bảng</button>
-        <button class="btn-add" onclick="openModal()">+ Thêm Prompt</button>
+    <div class="controls-wrapper">
+      <div class="controls">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="searchInput" placeholder="Tìm kiếm prompt...">
+        </div>
+        <div class="filter-box">
+          <select id="categoryFilter">
+            <option value="all">Tất cả Khối/Phòng ban</option>
+          </select>
+        </div>
+        <div class="filter-box">
+          <select id="formatFilter">
+            <option value="all">Tất cả định dạng</option>
+          </select>
+        </div>
+        <div class="view-toggle" style="margin:0">
+          <button id="btnGrid" onclick="setView('grid')">🔲</button>
+          <button id="btnTable" class="active" onclick="setView('table')">📋</button>
+        </div>
       </div>
     </div>
   </div>
@@ -321,6 +338,23 @@
   <div id="viewContainer">
     <div class="prompt-grid">
       <div class="loading">Đang tải dữ liệu Prompt...</div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="viewModal">
+    <div class="modal-box" style="max-width: 800px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+        <div>
+          <h2 class="modal-title" id="vTitle" style="margin:0"></h2>
+          <div id="vMeta" style="margin-top:8px;"></div>
+        </div>
+        <button onclick="closeViewModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-light)">&times;</button>
+      </div>
+      <div id="vContent" style="background:var(--bg); padding:20px; border-radius:8px; font-size:1rem; line-height:1.6; white-space:pre-wrap; max-height:400px; overflow-y:auto; margin-bottom:20px; border:1px solid var(--border);"></div>
+      <div class="modal-footer">
+        <button class="btn btn-save" id="vCopyBtn">📋 Copy Prompt</button>
+        <button class="btn btn-cancel" onclick="closeViewModal()">Đóng</button>
+      </div>
     </div>
   </div>
 
@@ -524,7 +558,7 @@
         data.forEach((p, idx) => {
           const trueIdx = promptsData.findIndex(item => item === p);
           html += `
-            <tr>
+            <tr onclick="viewPromptDetails(${trueIdx})" style="cursor:pointer">
               <td>${p.stt}</td>
               <td>
                 <span style="font-weight:600; color:var(--primary-dark); font-size:0.85rem">${p.category}</span><br/>
@@ -535,7 +569,7 @@
               <td>
                 <div class="table-content" id="content-${trueIdx}">${p.content}</div>
               </td>
-              <td>
+              <td onclick="event.stopPropagation()">
                 <div style="display:flex; gap:8px; flex-wrap:wrap">
                   <button class="btn-copy" style="padding: 8px; flex:1;" onclick="copyToClipboard('${trueIdx}', this)">📋 Copy</button>
                   <button class="btn-copy" style="padding: 8px; background:#E8EAED; color:var(--text); width:auto;" onclick="openModal(${trueIdx})">✏️</button>
@@ -627,6 +661,24 @@
       }
       saveData();
       closeModal();
+    }
+
+    function viewPromptDetails(idx) {
+      const p = promptsData[idx];
+      document.getElementById('vTitle').textContent = p.title;
+      document.getElementById('vMeta').innerHTML = `
+        <span class="card-tag">${p.category} - ${p.group}</span>
+        <span class="card-format">${p.format}</span>
+      `;
+      document.getElementById('vContent').textContent = p.content;
+      document.getElementById('vCopyBtn').onclick = function() {
+        copyToClipboard(idx, this);
+      };
+      document.getElementById('viewModal').style.display = 'flex';
+    }
+
+    function closeViewModal() {
+      document.getElementById('viewModal').style.display = 'none';
     }
 
     function deletePrompt(idx) {
