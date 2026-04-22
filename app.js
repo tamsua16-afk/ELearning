@@ -56,6 +56,12 @@ let coursesData = JSON.parse(localStorage.getItem('nv_learn_courses_v3')) || [
   }
 ];
 
+let docsData = JSON.parse(localStorage.getItem('nv_learn_docs_v2')) || [
+  { id: 'd0', title: 'Thư viện Prompt Thông minh', desc: 'Tra cứu & Copy nhanh 100+ câu lệnh AI cho mọi nghiệp vụ của Ngọc Việt Group.', link: 'prompt-library.html' },
+  { id: 'd1', title: 'Sổ tay nhân sự 2026', desc: 'Quy định và chính sách công ty', link: '#' },
+  { id: 'd2', title: 'Quy trình vận hành AI', desc: 'Hướng dẫn áp dụng AI Agent nội bộ', link: '#' }
+];
+
 // --- APP STATE ---
 let currentUser = null;
 let userProgress = JSON.parse(localStorage.getItem('nv_learn_progress_v3')) || {}; 
@@ -65,6 +71,7 @@ let currentAdminCourse = null;
 function saveSystemData() {
   localStorage.setItem('nv_learn_users_v2', JSON.stringify(usersData));
   localStorage.setItem('nv_learn_courses_v3', JSON.stringify(coursesData));
+  localStorage.setItem('nv_learn_docs_v2', JSON.stringify(docsData));
 }
 
 // --- DOM ELEMENTS ---
@@ -204,6 +211,7 @@ function navigate(pageId) {
   // Route logic
   if (pageId === 'dashboard') renderDashboard();
   if (pageId === 'courses') renderCourses();
+  if (pageId === 'docs') renderDocs();
   if (pageId === 'admin') renderAdmin();
 }
 
@@ -496,10 +504,62 @@ function updateCourseDetailProgress() {
   document.getElementById('detail-progress-label').textContent = `${prog}%`;
 }
 
+// --- DOCS LOGIC ---
+function renderDocs() {
+  if (currentUser && currentUser.role === 'admin') {
+    document.getElementById('btn-create-doc').style.display = 'block';
+  } else {
+    document.getElementById('btn-create-doc').style.display = 'none';
+  }
+  
+  let html = '';
+  if (docsData.length === 0) {
+    html = '<div class="empty-state" style="grid-column: 1/-1;">Chưa có tài liệu nào được chia sẻ.</div>';
+  } else {
+    docsData.forEach(d => {
+      html += `
+        <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow); display:flex; flex-direction:column;">
+          <div style="font-size:2.5rem; margin-bottom:12px;">📄</div>
+          <h4 style="margin-bottom:8px; font-size:1.1rem; color:var(--text);">${d.title}</h4>
+          ${d.desc ? `<p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:16px;">${d.desc}</p>` : ''}
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:auto;">
+            <a href="${d.link}" target="_blank" class="btn-primary" style="padding:8px 16px; font-size:.85rem; text-decoration:none;">Mở tài liệu</a>
+            ${currentUser.role === 'admin' ? `<button class="btn-sm danger" onclick="deleteDoc('${d.id}')" style="padding:6px 12px; font-size:.8rem;">Xóa</button>` : ''}
+          </div>
+        </div>
+      `;
+    });
+  }
+  document.getElementById('docs-list').innerHTML = html;
+}
 
+function createDoc() {
+  const title = document.getElementById('new-doc-title').value;
+  const desc = document.getElementById('new-doc-desc').value;
+  const link = document.getElementById('new-doc-link').value;
+  
+  if(!title || !link) return alert('Vui lòng nhập tên và link tài liệu!');
+  
+  docsData.push({ id: 'd' + Date.now(), title, desc, link });
+  saveSystemData();
+  closeModal('modal-add-doc');
+  
+  document.getElementById('new-doc-title').value = '';
+  document.getElementById('new-doc-desc').value = '';
+  document.getElementById('new-doc-link').value = '';
+  
+  renderDocs();
+  showToast('Đã thêm tài liệu!');
+}
 
-
-
+function deleteDoc(id) {
+  if (confirm('Bạn có chắc muốn xóa tài liệu này?')) {
+    docsData = docsData.filter(d => d.id !== id);
+    saveSystemData();
+    renderDocs();
+    showToast('Đã xóa tài liệu!');
+  }
+}
 
 function renderAdminCourseDetail(courseId) {
   currentAdminCourse = coursesData.find(c => c.id === courseId);

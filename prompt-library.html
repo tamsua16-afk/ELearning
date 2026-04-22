@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thư viện Prompt Thông minh - Ngọc Việt Group</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    :root {
+      --primary: #4285F4;
+      --primary-dark: #2563EB;
+      --bg: #F8F9FA;
+      --surface: #FFFFFF;
+      --border: #E8EAED;
+      --text: #202124;
+      --text-muted: #5F6368;
+      --radius: 12px;
+      --shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+    
+    body { background: var(--bg); color: var(--text); padding: 24px; }
+    
+    .header {
+      max-width: 1200px;
+      margin: 0 auto 24px auto;
+      text-align: center;
+    }
+    .header h1 { font-size: 2rem; margin-bottom: 8px; color: var(--primary-dark); }
+    .header p { color: var(--text-muted); }
+
+    .controls {
+      max-width: 1200px;
+      margin: 0 auto 24px auto;
+      display: flex;
+      gap: 16px;
+      background: var(--surface);
+      padding: 16px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      flex-wrap: wrap;
+    }
+
+    .search-box {
+      flex: 1;
+      min-width: 300px;
+      position: relative;
+    }
+    .search-box input {
+      width: 100%;
+      padding: 12px 16px 12px 40px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 1rem;
+      outline: none;
+    }
+    .search-box input:focus { border-color: var(--primary); }
+    .search-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+    }
+
+    .filter-box select {
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 1rem;
+      outline: none;
+      background: var(--surface);
+      cursor: pointer;
+    }
+
+    .prompt-grid {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 20px;
+    }
+
+    .prompt-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.2s;
+    }
+    .prompt-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      align-items: flex-start;
+    }
+    .card-tag {
+      background: #EEF4FF;
+      color: var(--primary-dark);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .card-format {
+      background: #F1F3F4;
+      color: var(--text-muted);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+
+    .card-content {
+      background: var(--bg);
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 16px;
+      flex: 1;
+      overflow-y: auto;
+      max-height: 150px;
+      white-space: pre-wrap;
+    }
+
+    .btn-copy {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+      width: 100%;
+    }
+    .btn-copy:hover { background: var(--primary-dark); }
+    .btn-copy.copied { background: var(--success); }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+      grid-column: 1 / -1;
+    }
+
+    .view-toggle {
+      display: flex;
+      gap: 8px;
+      margin-left: auto;
+    }
+    .view-toggle button {
+      padding: 10px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+    .view-toggle button.active {
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      border-color: var(--primary);
+    }
+
+    .prompt-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .prompt-table th, .prompt-table td {
+      padding: 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .prompt-table th {
+      background: var(--bg);
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .prompt-table tbody tr:hover {
+      background: #F8FAFC;
+    }
+    .table-content {
+      max-height: 80px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      align-items: center; justify-content: center;
+      z-index: 1000;
+    }
+    .modal-box {
+      background: var(--surface);
+      border-radius: var(--radius);
+      width: 100%; max-width: 600px;
+      padding: 24px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    }
+    .modal-title { font-size: 1.5rem; margin-bottom: 16px; color: var(--primary-dark); }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; margin-bottom: 8px; font-weight: 500; }
+    .form-group input, .form-group textarea, .form-group select {
+      width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem;
+    }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+    .btn { padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; border: none; }
+    .btn-cancel { background: #E8EAED; color: var(--text); }
+    .btn-save { background: var(--primary); color: white; }
+    .btn-save:hover { background: var(--primary-dark); }
+    .btn-add { background: var(--success); color: white; margin-left: 16px; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer;}
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>📚 Thư viện Prompt Thông minh</h1>
+    <p>Kho lưu trữ 100+ câu lệnh AI tối ưu cho mọi nghiệp vụ tại Ngọc Việt Group</p>
+  </div>
+
+  <div class="controls">
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Tìm kiếm theo tên prompt, mục đích, nghiệp vụ...">
+    </div>
+    <div class="filter-box">
+      <select id="categoryFilter">
+        <option value="all">Tất cả Khối/Phòng ban</option>
+      </select>
+    </div>
+    <div class="filter-box">
+      <select id="formatFilter">
+        <option value="all">Tất cả định dạng</option>
+      </select>
+    </div>
+    <div class="view-toggle">
+      <button id="btnGrid" onclick="setView('grid')">🔲 Dạng Thẻ</button>
+      <button id="btnTable" class="active" onclick="setView('table')">📋 Dạng Bảng</button>
+      <button class="btn-add" onclick="openModal()">+ Thêm Prompt</button>
+    </div>
+  </div>
+
+  <div id="viewContainer">
+    <div class="prompt-grid">
+      <div class="loading">Đang tải dữ liệu Prompt...</div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="promptModal">
+    <div class="modal-box">
+      <h2 class="modal-title" id="modalTitle">Thêm Prompt Mới</h2>
+      <input type="hidden" id="editIndex" value="-1" />
+      <div class="form-group">
+        <label>Khối/Phòng ban</label>
+        <input type="text" id="pCategory" placeholder="VD: Khối Bất động sản">
+      </div>
+      <div class="form-group">
+        <label>Nghiệp vụ</label>
+        <input type="text" id="pGroup" placeholder="VD: Mạng xã hội">
+      </div>
+      <div class="form-group">
+        <label>Định dạng</label>
+        <select id="pFormat">
+          <option value="Content">Content</option>
+          <option value="Hình ảnh">Hình ảnh</option>
+          <option value="Video">Video</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Tên Prompt</label>
+        <input type="text" id="pTitle" placeholder="Tên chức năng của prompt">
+      </div>
+      <div class="form-group">
+        <label>Nội dung Prompt</label>
+        <textarea id="pContent" rows="5" placeholder="Câu lệnh chi tiết..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-cancel" onclick="closeModal()">Hủy</button>
+        <button class="btn btn-save" onclick="savePrompt()">Lưu lại</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let promptsData = JSON.parse(localStorage.getItem('nv_learn_prompts_v1')) || [];
+    let currentView = 'table';
+
+    function setView(view) {
+      currentView = view;
+      document.getElementById('btnGrid').classList.toggle('active', view === 'grid');
+      document.getElementById('btnTable').classList.toggle('active', view === 'table');
+      handleFilter();
+    }
+
+    async function loadPrompts() {
+      if (promptsData.length > 0) {
+        populateFilters();
+        handleFilter();
+        return;
+      }
+      try {
+        const response = await fetch('Prompt');
+        if (!response.ok) throw new Error('Cannot load Prompt file');
+        const text = await response.text();
+        parsePrompts(text);
+      } catch (error) {
+        // Fallback for file:// protocol CORS issues
+        document.getElementById('viewContainer').innerHTML = `
+          <div class="loading" style="color:var(--text-muted); max-width:600px; margin:0 auto;">
+            <h3>⚠️ Không thể tải dữ liệu tự động</h3>
+            <p style="margin-top:10px;">Do bạn đang mở trực tiếp file HTML (chế độ offline), trình duyệt chặn quyền tự động đọc file nội bộ.</p>
+            <p style="margin-top:10px;">Vui lòng bấm nút bên dưới và chọn file <strong>Prompt</strong> trong thư mục để tiếp tục:</p>
+            <input type="file" id="promptFileInput" style="margin-top:20px; font-size:1rem;" accept=".txt, *" onchange="handleFileUpload(event)">
+          </div>
+        `;
+      }
+    }
+
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        parsePrompts(e.target.result);
+      };
+      reader.readAsText(file);
+    }
+
+    function parsePrompts(text) {
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
+      let currentCategory = '';
+      let i = 0;
+
+      while (i < lines.length) {
+        if (lines[i].match(/^\d+\.\s+KHỐI/)) {
+          currentCategory = lines[i].replace(/^\d+\.\s+/, '').replace(/\s+\(\d+\s+Prompt\)/i, '').trim();
+          i++;
+          // Skip header row
+          while (i < lines.length && !lines[i].match(/^\d+$/)) {
+            i++;
+          }
+        } else if (lines[i].match(/^\d+$/)) {
+          let stt = lines[i++];
+          let group = lines[i++] || '';
+          let title = lines[i++] || '';
+          
+          let content = '';
+          while (i < lines.length && !['Content', 'Hình ảnh', 'Video'].includes(lines[i])) {
+            content += lines[i] + '\n';
+            i++;
+          }
+          let format = lines[i++] || 'Content';
+
+          if (title && content) {
+            promptsData.push({
+              category: currentCategory,
+              stt: stt,
+              group: group,
+              title: title,
+              content: content.trim(),
+              format: format
+            });
+          }
+        } else {
+          i++;
+        }
+      }
+
+      populateFilters();
+      saveData();
+    }
+
+    function saveData() {
+      localStorage.setItem('nv_learn_prompts_v1', JSON.stringify(promptsData));
+      handleFilter();
+    }
+
+    function populateFilters() {
+      const categories = [...new Set(promptsData.map(p => p.category))];
+      const formats = [...new Set(promptsData.map(p => p.format))];
+
+      const catSelect = document.getElementById('categoryFilter');
+      categories.forEach(c => {
+        let opt = document.createElement('option');
+        opt.value = c; opt.textContent = c;
+        catSelect.appendChild(opt);
+      });
+
+      const formatSelect = document.getElementById('formatFilter');
+      formats.forEach(f => {
+        let opt = document.createElement('option');
+        opt.value = f; opt.textContent = f;
+        formatSelect.appendChild(opt);
+      });
+    }
+
+    function renderPrompts(data) {
+      const container = document.getElementById('viewContainer');
+      if (data.length === 0) {
+        container.innerHTML = '<div class="loading">Không tìm thấy kết quả phù hợp.</div>';
+        return;
+      }
+
+      if (currentView === 'grid') {
+        let html = '<div class="prompt-grid">';
+        data.forEach((p, idx) => {
+          // get true index in promptsData
+          const trueIdx = promptsData.findIndex(item => item === p);
+          html += `
+            <div class="prompt-card">
+              <div class="card-header">
+                <span class="card-tag">${p.category} - ${p.group}</span>
+                <span class="card-format">${p.format}</span>
+              </div>
+              <h3 class="card-title">${p.title}</h3>
+              <div class="card-content" id="content-${trueIdx}">${p.content}</div>
+              <div style="display:flex; gap:8px;">
+                <button class="btn-copy" onclick="copyToClipboard('${trueIdx}', this)">📋 Copy</button>
+                <button class="btn-copy" style="background:#E8EAED; color:var(--text); width:auto;" onclick="openModal(${trueIdx})">✏️</button>
+                <button class="btn-copy" style="background:#FEE2E2; color:var(--danger); width:auto;" onclick="deletePrompt(${trueIdx})">🗑️</button>
+              </div>
+            </div>
+          `;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+      } else {
+        let html = `
+          <div style="max-width: 1200px; margin: 0 auto; overflow-x: auto;">
+            <table class="prompt-table">
+              <thead>
+                <tr>
+                  <th style="width: 5%">STT</th>
+                  <th style="width: 15%">Nghiệp vụ / Phòng ban</th>
+                  <th style="width: 25%">Tên Prompt</th>
+                  <th style="width: 40%">Nội dung (Preview)</th>
+                  <th style="width: 15%">Hành động</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+        data.forEach((p, idx) => {
+          const trueIdx = promptsData.findIndex(item => item === p);
+          html += `
+            <tr>
+              <td>${p.stt}</td>
+              <td>
+                <span style="font-weight:600; color:var(--primary-dark); font-size:0.85rem">${p.category}</span><br/>
+                <span class="card-tag" style="margin-top:4px; display:inline-block">${p.group}</span><br/>
+                <span class="card-format" style="margin-top: 4px; display: inline-block;">${p.format}</span>
+              </td>
+              <td style="font-weight: 500;">${p.title}</td>
+              <td>
+                <div class="table-content" id="content-${trueIdx}">${p.content}</div>
+              </td>
+              <td>
+                <div style="display:flex; gap:8px; flex-wrap:wrap">
+                  <button class="btn-copy" style="padding: 8px; flex:1;" onclick="copyToClipboard('${trueIdx}', this)">📋 Copy</button>
+                  <button class="btn-copy" style="padding: 8px; background:#E8EAED; color:var(--text); width:auto;" onclick="openModal(${trueIdx})">✏️</button>
+                  <button class="btn-copy" style="padding: 8px; background:#FEE2E2; color:var(--danger); width:auto;" onclick="deletePrompt(${trueIdx})">🗑️</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        });
+        html += `
+              </tbody>
+            </table>
+          </div>
+        `;
+        container.innerHTML = html;
+      }
+    }
+
+    function copyToClipboard(idx, btn) {
+      const text = document.getElementById(`content-${idx}`).innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '✅ Đã Copy!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+          btn.classList.remove('copied');
+        }, 2000);
+      });
+    }
+
+    function handleFilter() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const cat = document.getElementById('categoryFilter').value;
+      const format = document.getElementById('formatFilter').value;
+
+      const filtered = promptsData.filter(p => {
+        const matchSearch = p.title.toLowerCase().includes(search) || p.content.toLowerCase().includes(search) || p.group.toLowerCase().includes(search);
+        const matchCat = cat === 'all' || p.category === cat;
+        const matchFormat = format === 'all' || p.format === format;
+        return matchSearch && matchCat && matchFormat;
+      });
+
+      renderPrompts(filtered);
+    }
+
+    // CRUD Logic
+    function openModal(idx = -1) {
+      document.getElementById('promptModal').style.display = 'flex';
+      if(idx > -1) {
+        document.getElementById('modalTitle').textContent = 'Chỉnh sửa Prompt';
+        document.getElementById('editIndex').value = idx;
+        const p = promptsData[idx];
+        document.getElementById('pCategory').value = p.category;
+        document.getElementById('pGroup').value = p.group;
+        document.getElementById('pTitle').value = p.title;
+        document.getElementById('pContent').value = p.content;
+        document.getElementById('pFormat').value = p.format;
+      } else {
+        document.getElementById('modalTitle').textContent = 'Thêm Prompt Mới';
+        document.getElementById('editIndex').value = -1;
+        document.getElementById('pCategory').value = '';
+        document.getElementById('pGroup').value = '';
+        document.getElementById('pTitle').value = '';
+        document.getElementById('pContent').value = '';
+        document.getElementById('pFormat').value = 'Content';
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('promptModal').style.display = 'none';
+    }
+
+    function savePrompt() {
+      const idx = parseInt(document.getElementById('editIndex').value);
+      const category = document.getElementById('pCategory').value || 'Chung';
+      const group = document.getElementById('pGroup').value || 'Chung';
+      const title = document.getElementById('pTitle').value;
+      const content = document.getElementById('pContent').value;
+      const format = document.getElementById('pFormat').value;
+
+      if(!title || !content) return alert('Vui lòng nhập Tên và Nội dung!');
+
+      if(idx > -1) {
+        promptsData[idx] = { ...promptsData[idx], category, group, title, content, format };
+      } else {
+        const stt = promptsData.length > 0 ? parseInt(promptsData[promptsData.length-1].stt) + 1 : 1;
+        promptsData.push({ stt: stt, category, group, title, content, format });
+      }
+      saveData();
+      closeModal();
+    }
+
+    function deletePrompt(idx) {
+      if(confirm('Bạn có chắc muốn xóa prompt này?')) {
+        promptsData.splice(idx, 1);
+        saveData();
+      }
+    }
+
+    document.getElementById('searchInput').addEventListener('input', handleFilter);
+    document.getElementById('categoryFilter').addEventListener('change', handleFilter);
+    document.getElementById('formatFilter').addEventListener('change', handleFilter);
+
+    // Init
+    window.onload = loadPrompts;
+  </script>
+</body>
+</html>

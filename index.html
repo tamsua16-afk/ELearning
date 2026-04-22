@@ -102,6 +102,9 @@
       <a class="nav-item" id="nav-courses" onclick="navigate('courses')">
         <span class="nav-icon">📚</span><span class="nav-label">Khóa học</span>
       </a>
+      <a class="nav-item" id="nav-docs" onclick="navigate('docs')">
+        <span class="nav-icon">📂</span><span class="nav-label">Tài liệu</span>
+      </a>
 
     </nav>
 
@@ -282,6 +285,18 @@
 
 
 
+      <!-- ── DOCS PAGE ── -->
+      <div id="page-docs" class="page">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Tài liệu chia sẻ</h2>
+            <p class="page-subtitle">Kho tài liệu, biểu mẫu và quy trình nội bộ</p>
+          </div>
+          <button class="btn-primary" id="btn-create-doc" onclick="openModal('modal-add-doc')" style="display:none;">+ Thêm tài liệu</button>
+        </div>
+        <div id="docs-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;"></div>
+      </div>
+
       <!-- ── COURSE DETAIL PAGE ── -->
       <div id="page-course-detail" class="page">
         <div class="course-detail-layout">
@@ -351,6 +366,34 @@
 <!-- ═══════════════════════════════════════════════════
      MODALS
 ════════════════════════════════════════════════════ -->
+
+<!-- Add Doc Modal -->
+<div class="modal-overlay" id="modal-add-doc" onclick="closeModalOutside(event, 'modal-add-doc')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 class="modal-title">Thêm tài liệu tham khảo</h3>
+      <button class="modal-close" onclick="closeModal('modal-add-doc')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Tên tài liệu *</label>
+        <input class="form-input" type="text" id="new-doc-title" placeholder="VD: Sổ tay nhân sự 2026" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mô tả ngắn</label>
+        <textarea class="form-input" id="new-doc-desc" rows="2" placeholder="Ghi chú thêm về tài liệu..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Link tài liệu (Drive/Web) *</label>
+        <input class="form-input" type="url" id="new-doc-link" placeholder="https://..." />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-add-doc')">Hủy</button>
+      <button class="btn-primary" onclick="createDoc()">Lưu tài liệu</button>
+    </div>
+  </div>
+</div>
 
 <!-- Add Course Modal -->
 <div class="modal-overlay" id="modal-add-course" onclick="closeModalOutside(event, 'modal-add-course')">
