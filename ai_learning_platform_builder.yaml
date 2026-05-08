@@ -135,7 +135,7 @@ ui_design:
 
 demo_mode:
 
-  enabled: true
+  enabled: false
 
   preload_data:
     users:

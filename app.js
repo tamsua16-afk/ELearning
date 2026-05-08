@@ -4,10 +4,10 @@
 ════════════════════════════════════════════════════ */
 
 // --- MOCK DATA ---
-let usersData = JSON.parse(localStorage.getItem('nv_learn_users_v2')) || [
-  { id: 'u1', name: 'Nguyễn Văn A', email: 'a@ngocviet.com.vn', password: '123', role: 'learner', avatar: 'A' },
-  { id: 'u3', name: 'Quản trị viên', email: 'admin@ngocviet.com.vn', password: 'admin', role: 'admin', avatar: '🛡️' }
-];
+
+// --- USER DATA (loaded from localStorage, no demo accounts) ---
+let usersData = JSON.parse(localStorage.getItem('nv_learn_users_v2')) || [];
+
 
 let coursesData = JSON.parse(localStorage.getItem('nv_learn_courses_v3')) || [
   {
@@ -29,17 +29,45 @@ let coursesData = JSON.parse(localStorage.getItem('nv_learn_courses_v3')) || [
   {
     id: 'c2',
     title: 'GIAI ĐOẠN 2: AI PRODUCTIVITY TRAINING',
-    description: 'Đào tạo online hàng tuần. Cấu trúc mỗi buổi (60 phút): 15\' AI News & Pro-Tools Update | 35\' Topic chuyên đề | 10\' Q&A.',
+    description: 'Đào tạo online hàng tuần. Cấu trúc mỗi buổi (90 phút): 15\' AI News & Pro-Tools Update | 60\' Topic chuyên đề (2 chủ đề) | 15\' Q&A.',
     emoji: '💻',
     modules: [
-      { id: 'm2_2', title: 'Buổi 02: AI Prompting Mastery', desc: 'Kỹ thuật điều khiển AI đa tầng để giải quyết bài toán nghiệp vụ phức tạp.', tools: 'Google Gemini', link: '#', type: 'embed' },
-      { id: 'm2_3', title: 'Buổi 03: AI cho Giao tiếp doanh nghiệp', desc: 'Tự động hóa soạn thảo Email, Proposal, dịch thuật đa ngôn ngữ.', tools: 'Gemini, DeepL', link: '#', type: 'embed' },
-      { id: 'm2_4', title: 'Buổi 04: AI Quản trị tri thức (Phần 1)', desc: 'Biến kho tài liệu nội bộ thành "trợ lý thông minh".', tools: 'NotebookLM', link: '#', type: 'embed' },
-      { id: 'm2_5', title: 'Buổi 05: AI Presentation & Visual', desc: 'Thiết kế Slide thuyết trình chuyên nghiệp và hình ảnh thương hiệu.', tools: 'Gamma, Imagen 3', link: '#', type: 'embed' },
-      { id: 'm2_6', title: 'Buổi 06: AI Video & Media', desc: 'Khởi tạo Video kể chuyện, giới thiệu dự án và đào tạo nội bộ.', tools: 'Google Vids', link: '#', type: 'embed' },
-      { id: 'm2_7', title: 'Buổi 07: AI Data Analysis', desc: 'Phân tích báo cáo tài chính, thị trường và dự báo đầu tư không dùng hàm.', tools: 'Gemini (Analysis)', link: '#', type: 'embed' },
-      { id: 'm2_8', title: 'Buổi 08: AI Automation & Agent', desc: 'Xây dựng trợ lý ảo (No-code) hỗ trợ tác vụ lặp lại.', tools: 'Google AI Studio', link: '#', type: 'embed' },
-      { id: 'm2_9', title: 'Buổi 09: TỔNG KẾT & HỆ THỐNG HÓA', desc: 'Ôn tập toàn bộ Workflow buổi 2-8; Giải đáp vướng mắc thực tế.', tools: 'MiraBOT, MiraEDU', link: '#', type: 'embed' }
+      {
+        id: 'm2_A',
+        title: 'Buổi 02: AI Prompting Mastery & Giao tiếp doanh nghiệp',
+        desc: '- AI Prompting Mastery: Kỹ thuật điều khiển AI đa tầng để giải quyết bài toán nghiệp vụ phức tạp.\n- AI Giao tiếp doanh nghiệp: Tự động hóa soạn thảo Email, Proposal, dịch thuật đa ngôn ngữ.',
+        tools: 'Google Gemini, DeepL',
+        duration: '90 phút',
+        link: '#',
+        type: 'embed'
+      },
+      {
+        id: 'm2_B',
+        title: 'Buổi 03: AI Quản trị tri thức & Presentation/Visual',
+        desc: '- AI Quản trị tri thức: Biến kho tài liệu nội bộ thành "trợ lý thông minh".\n- AI Presentation & Visual: Thiết kế Slide thuyết trình chuyên nghiệp và hình ảnh thương hiệu.',
+        tools: 'NotebookLM, Gamma, Imagen 3',
+        duration: '90 phút',
+        link: '#',
+        type: 'embed'
+      },
+      {
+        id: 'm2_C',
+        title: 'Buổi 04: AI Video & Media + Data Analysis',
+        desc: '- AI Video & Media: Khởi tạo Video kể chuyện, giới thiệu dự án và đào tạo nội bộ.\n- AI Data Analysis: Phân tích báo cáo tài chính, thị trường và dự báo đầu tư không dùng hàm.',
+        tools: 'Google Vids, Gemini (Analysis)',
+        duration: '90 phút',
+        link: '#',
+        type: 'embed'
+      },
+      {
+        id: 'm2_D',
+        title: 'Buổi 05: AI Automation & Agent + TỔNG KẾT',
+        desc: '- AI Automation & Agent: Xây dựng trợ lý ảo (No-code) hỗ trợ tác vụ lặp lại.\n- Tổng kết & Hệ thống hóa: Ôn tập toàn bộ Workflow buổi 2-4; Giải đáp vướng mắc thực tế.',
+        tools: 'Google AI Studio, MiraBOT, MiraEDU',
+        duration: '90 phút',
+        link: '#',
+        type: 'embed'
+      }
     ]
   },
   {
@@ -76,10 +104,10 @@ function saveSystemData() {
 
 // --- DOM ELEMENTS ---
 const el = {
+  screenSetup: document.getElementById('screen-setup'),
   screenLogin: document.getElementById('screen-login'),
   screenApp: document.getElementById('screen-app'),
   loginEmailForm: document.getElementById('login-email-form'),
-  loginMasterForm: document.getElementById('login-master-form'),
   sidebar: document.getElementById('sidebar'),
   overlay: document.getElementById('sidebar-overlay'),
   topbarTitle: document.getElementById('topbar-title'),
@@ -95,6 +123,12 @@ const el = {
 
 // --- INITIALIZATION ---
 function init() {
+  // First-run: no users in the system yet
+  if (usersData.length === 0) {
+    showScreen('setup');
+    return;
+  }
+
   const savedUserId = localStorage.getItem('nv_learn_user');
   if (savedUserId) {
     const user = usersData.find(u => u.id === savedUserId);
@@ -110,8 +144,9 @@ function init() {
 
 // --- UTILS ---
 function showScreen(screen) {
+  el.screenSetup.style.display = screen === 'setup' ? 'flex' : 'none';
   el.screenLogin.style.display = screen === 'login' ? 'flex' : 'none';
-  el.screenApp.style.display = screen === 'app' ? 'flex' : 'none';
+  el.screenApp.style.display  = screen === 'app'   ? 'flex' : 'none';
 }
 
 function showToast(msg) {
@@ -121,38 +156,46 @@ function showToast(msg) {
 }
 
 // --- AUTHENTICATION ---
-function switchLoginTab(tab) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById(`tab-${tab}`).classList.add('active');
-  
-  if (tab === 'email') {
-    el.loginEmailForm.style.display = 'block';
-    el.loginMasterForm.style.display = 'none';
-  } else {
-    el.loginEmailForm.style.display = 'none';
-    el.loginMasterForm.style.display = 'block';
-  }
-}
 
-function quickLogin(type) {
-  if (type === 'learner') login(usersData[0]);
-  if (type === 'admin') login(usersData[1]);
+// First-run: create the very first admin account
+function handleFirstSetup() {
+  const name  = document.getElementById('setup-name').value.trim();
+  const email = document.getElementById('setup-email').value.trim();
+  const pass  = document.getElementById('setup-password').value;
+  const pass2 = document.getElementById('setup-password2').value;
+
+  if (!name || !email || !pass || !pass2) {
+    return alert('Vui lòng điền đầy đủ tất cả các trường!');
+  }
+  if (pass.length < 8) {
+    return alert('Mật khẩu phải có ít nhất 8 ký tự!');
+  }
+  if (pass !== pass2) {
+    return alert('Mật khẩu xác nhận không khớp!');
+  }
+
+  const adminUser = {
+    id: 'admin_' + Date.now(),
+    name,
+    email,
+    password: pass,
+    role: 'admin',
+    avatar: name.charAt(0).toUpperCase()
+  };
+
+  usersData.push(adminUser);
+  saveSystemData();
+  showToast('✅ Tài khoản Admin đã được tạo thành công!');
+  login(adminUser);
 }
 
 function handleLogin() {
-  const activeTab = document.querySelector('.tab-btn.active').id;
-  if (activeTab === 'tab-master') {
-    const pw = document.getElementById('master-password').value;
-    if (pw === 'ngocviet2024') quickLogin('learner');
-    else if (pw === 'admin2024') quickLogin('admin');
-    else alert('Mật khẩu không đúng!');
-  } else {
-    const email = document.getElementById('login-email').value;
-    const pass = document.getElementById('login-password').value;
-    const user = usersData.find(u => u.email === email && (!u.password || u.password === pass));
-    if (user) login(user);
-    else alert('Email hoặc mật khẩu không đúng!');
-  }
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-password').value;
+  if (!email || !pass) return alert('Vui lòng nhập email và mật khẩu!');
+  const user = usersData.find(u => u.email === email && u.password === pass);
+  if (user) login(user);
+  else alert('Email hoặc mật khẩu không đúng!');
 }
 
 function login(user) {
