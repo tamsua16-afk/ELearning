@@ -827,7 +827,7 @@ function loadModule(moduleId) {
 function markLessonComplete(lessonId) {
   if (!userProgress[currentUser.id]) userProgress[currentUser.id] = {};
   userProgress[currentUser.id][lessonId] = true;
-  localStorage.setItem('nv_learn_progress_v3', JSON.stringify(userProgress));
+  saveSystemData();
   
   // Update UI
   document.getElementById('btn-mark-done').innerHTML = '✅ Đã hoàn thành';
