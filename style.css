@@ -52,7 +52,9 @@ a { cursor: pointer; text-decoration: none; }
 /* ════════════════════════════════════════════════════
    LOGIN
 ════════════════════════════════════════════════════ */
-#screen-login {
+#screen-login,
+#screen-register,
+#screen-setup {
   display: flex; align-items: center; justify-content: center;
   min-height: 100vh; position: relative; overflow: hidden;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #4285F4 100%);
@@ -102,6 +104,11 @@ a { cursor: pointer; text-decoration: none; }
 
 .error-msg {
   background: #FEE2E2; border: 1px solid #FECACA; color: #DC2626;
+  border-radius: var(--radius-sm); padding: 10px 14px; font-size: .85rem; margin-bottom: 16px;
+}
+
+.success-msg {
+  background: #D1FAE5; border: 1px solid #6EE7B7; color: #065F46;
   border-radius: var(--radius-sm); padding: 10px 14px; font-size: .85rem; margin-bottom: 16px;
 }
 

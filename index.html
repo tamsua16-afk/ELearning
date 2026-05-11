@@ -83,29 +83,108 @@
         <p class="brand-sub">Ngọc Việt Group · AI Training</p>
       </div>
     </div>
-    <h2 class="login-title">Chào mừng trở lại 👋</h2>
-    <p class="login-desc">Đăng nhập để bắt đầu hành trình học tập AI của bạn</p>
+    <h2 class="login-title" id="login-card-title">Chào mừng trở lại 👋</h2>
+    <p class="login-desc" id="login-card-desc">Đăng nhập để bắt đầu hành trình học tập AI của bạn</p>
 
-
-
-    <div id="login-email-form">
-      <div class="form-group">
-        <label class="form-label" for="login-email">Email</label>
-        <input class="form-input" type="email" id="login-email" placeholder="you@ngocviet.com.vn" />
+    <!-- LOGIN PANEL -->
+    <div id="panel-login">
+      <div id="login-email-form">
+        <div class="form-group">
+          <label class="form-label" for="login-email">Email</label>
+          <input class="form-input" type="email" id="login-email" placeholder="you@ngocviet.com.vn" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="login-password">Mật khẩu</label>
+          <input class="form-input" type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter') handleLogin()" />
+        </div>
       </div>
-      <div class="form-group">
-        <label class="form-label" for="login-password">Mật khẩu</label>
-        <input class="form-input" type="password" id="login-password" placeholder="••••••••" />
-      </div>
+      <div id="login-error" class="error-msg" style="display:none"></div>
+      <button class="btn-primary btn-full" id="btn-login" onclick="handleLogin()">Đăng nhập</button>
+      <p style="text-align:center; margin-top:14px; font-size:.85rem;">
+        <a onclick="showForgotPanel()" style="color:var(--primary); cursor:pointer; text-decoration:underline;">Quên mật khẩu?</a>
+      </p>
     </div>
 
+    <!-- FORGOT PASSWORD PANEL -->
+    <div id="panel-forgot" style="display:none;">
+      <div id="forgot-step-1">
+        <div class="form-group">
+          <label class="form-label" for="forgot-email">Nhập email tài khoản của bạn</label>
+          <input class="form-input" type="email" id="forgot-email" placeholder="you@ngocviet.com.vn" onkeydown="if(event.key==='Enter') forgotStep1()" />
+        </div>
+        <div id="forgot-error-1" class="error-msg" style="display:none;"></div>
+        <button class="btn-primary btn-full" onclick="forgotStep1()">Xác nhận email →</button>
+      </div>
+      <div id="forgot-step-2" style="display:none;">
+        <div class="success-msg" id="forgot-email-confirmed" style="margin-bottom:16px;"></div>
+        <div class="form-group">
+          <label class="form-label" for="forgot-newpass">Mật khẩu mới *</label>
+          <input class="form-input" type="password" id="forgot-newpass" placeholder="Tối thiểu 8 ký tự" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="forgot-newpass2">Xác nhận mật khẩu mới *</label>
+          <input class="form-input" type="password" id="forgot-newpass2" placeholder="Nhập lại mật khẩu" onkeydown="if(event.key==='Enter') forgotStep2()" />
+        </div>
+        <div id="forgot-error-2" class="error-msg" style="display:none;"></div>
+        <button class="btn-primary btn-full" onclick="forgotStep2()">&#128274; Đặt mật khẩu mới</button>
+      </div>
+      <p style="text-align:center; margin-top:14px; font-size:.85rem;">
+        <a onclick="showLoginPanel()" style="color:var(--primary); cursor:pointer; text-decoration:underline;">← Quay lại đăng nhập</a>
+      </p>
+    </div>
 
+  </div>
+</div>
 
-    <div id="login-error" class="error-msg" style="display:none"></div>
+<!-- ═══════════════════════════════════════════════════
+     SELF-REGISTER SCREEN (via Invite Link)
+════════════════════════════════════════════════════ -->
+<div id="screen-register" class="screen" style="display:none">
+  <div class="login-bg">
+    <div class="login-blob blob1"></div>
+    <div class="login-blob blob2"></div>
+    <div class="login-blob blob3"></div>
+  </div>
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="brand-logo">
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+          <rect width="36" height="36" rx="10" fill="#4285F4"/>
+          <path d="M10 24 L18 10 L26 24" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <path d="M13 20 L23 20" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="brand-name">NV Learn</h1>
+        <p class="brand-sub">Ngọc Việt Group · AI Training</p>
+      </div>
+    </div>
+    <h2 class="login-title">✨ Tạo tài khoản học viên</h2>
+    <p class="login-desc" id="register-invite-notice" style="color:var(--success, #10b981); font-weight:500;">Bạn được mời tham gia nền tảng đào tạo NV Learn</p>
 
-    <button class="btn-primary btn-full" id="btn-login" onclick="handleLogin()">Đăng nhập</button>
+    <div class="form-group">
+      <label class="form-label" for="reg-name">Họ và tên *</label>
+      <input class="form-input" type="text" id="reg-name" placeholder="VD: Nguyễn Văn A" />
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="reg-email">Email *</label>
+      <input class="form-input" type="email" id="reg-email" placeholder="you@ngocviet.com.vn" />
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="reg-password">Mật khẩu *</label>
+      <input class="form-input" type="password" id="reg-password" placeholder="Tối thiểu 8 ký tự" />
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="reg-password2">Xác nhận mật khẩu *</label>
+      <input class="form-input" type="password" id="reg-password2" placeholder="Nhập lại mật khẩu" />
+    </div>
 
+    <div id="register-error" class="error-msg" style="display:none;"></div>
 
+    <button class="btn-primary btn-full" id="btn-register" onclick="handleSelfRegister()">🚀 Đăng ký &amp; Bắt đầu học</button>
+    <p style="font-size:0.8rem; color:var(--text-muted); text-align:center; margin-top:12px;">
+      Đã có tài khoản? <a onclick="showScreen('login')" style="color:var(--primary); cursor:pointer; text-decoration:underline;">Đăng nhập tại đây</a>
+    </p>
   </div>
 </div>
 
@@ -266,7 +345,10 @@
           <div class="section" style="margin-top:24px;">
             <div class="section-header">
               <h3 class="section-title">Danh sách học viên và tiến độ hệ thống</h3>
-              <button class="btn-primary" onclick="openModal('modal-add-user')">+ Thêm học viên</button>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="btn-secondary" onclick="openInviteLinkModal()" style="display:flex; align-items:center; gap:6px;">🔗 Link mời đăng ký</button>
+                <button class="btn-primary" onclick="openModal('modal-add-user')">+ Thêm học viên</button>
+              </div>
             </div>
             <div class="table-wrapper">
               <table class="data-table">
@@ -683,6 +765,70 @@
 
 <!-- Toast notification -->
 <div id="toast" class="toast"></div>
+
+<!-- Admin Reset User Password Modal -->
+<div class="modal-overlay" id="modal-reset-user-pw" onclick="closeModalOutside(event, 'modal-reset-user-pw')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 class="modal-title">🔑 Đặt lại mật khẩu học viên</h3>
+      <button class="modal-close" onclick="closeModal('modal-reset-user-pw')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="reset-target-user-id" />
+      <p id="reset-target-user-name" style="font-weight:600; color:var(--primary); margin-bottom:16px; font-size:.95rem;"></p>
+      <div class="form-group">
+        <label class="form-label" for="reset-new-pw">Mật khẩu mới *</label>
+        <input class="form-input" type="password" id="reset-new-pw" placeholder="Tối thiểu 8 ký tự" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="reset-new-pw2">Xác nhận mật khẩu *</label>
+        <input class="form-input" type="password" id="reset-new-pw2" placeholder="Nhập lại mật khẩu" />
+      </div>
+      <div id="reset-pw-error" class="error-msg" style="display:none;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-reset-user-pw')">Hủy</button>
+      <button class="btn-primary" onclick="saveResetUserPassword()">Lưu mật khẩu mới</button>
+    </div>
+  </div>
+</div>
+
+<!-- Invite Link Modal -->
+<div class="modal-overlay" id="modal-invite-link" onclick="closeModalOutside(event, 'modal-invite-link')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 class="modal-title">🔗 Quản lý Link mời đăng ký</h3>
+      <button class="modal-close" onclick="closeModal('modal-invite-link')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.9rem; color:var(--text-muted); margin-bottom:16px; line-height:1.6;">
+        Chia sẻ link bên dưới cho nhân viên. Họ có thể tự đăng ký tài khoản học viên mà không cần Admin tạo thủ công.
+      </p>
+
+      <div id="invite-link-status-active" style="display:none;">
+        <div style="background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 16px; margin-bottom:12px;">
+          <div style="font-size:.78rem; color:var(--text-muted); margin-bottom:4px;">Link mời hiện tại:</div>
+          <div id="invite-link-display" style="font-size:.82rem; word-break:break-all; color:var(--primary); font-family:monospace;"></div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn-primary" onclick="copyInviteLink()" style="flex:1;">📋 Sao chép link</button>
+          <button class="btn-secondary" onclick="revokeInviteLink()" style="flex:1; color:var(--danger, #ef4444);">🗑️ Thu hồi link</button>
+        </div>
+      </div>
+
+      <div id="invite-link-status-none" style="display:none;">
+        <div style="text-align:center; padding:24px 0; color:var(--text-muted); font-size:.9rem;">
+          <div style="font-size:2.5rem; margin-bottom:8px;">🔒</div>
+          Chưa có link mời nào. Tạo link để bắt đầu.
+        </div>
+        <button class="btn-primary btn-full" onclick="generateInviteLink()">✨ Tạo link mời mới</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-invite-link')">Đóng</button>
+    </div>
+  </div>
+</div>
 
 <script src="app.js"></script>
 </body>

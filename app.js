@@ -8,6 +8,9 @@
 // --- USER DATA (loaded from localStorage, no demo accounts) ---
 let usersData = JSON.parse(localStorage.getItem('nv_learn_users_v2')) || [];
 
+// Invite token for self-registration
+let inviteToken = localStorage.getItem('nv_learn_invite_token') || null;
+
 
 let coursesData = JSON.parse(localStorage.getItem('nv_learn_courses_v3')) || [
   {
@@ -90,6 +93,8 @@ let docsData = JSON.parse(localStorage.getItem('nv_learn_docs_v2')) || [
   { id: 'd2', title: 'Quy trình vận hành AI', desc: 'Hướng dẫn áp dụng AI Agent nội bộ', link: '#' }
 ];
 
+let pendingPromptsData = JSON.parse(localStorage.getItem('nv_learn_pending_prompts')) || [];
+
 // --- APP STATE ---
 let currentUser = null;
 let userProgress = JSON.parse(localStorage.getItem('nv_learn_progress_v3')) || {}; 
@@ -100,12 +105,14 @@ function saveSystemData() {
   localStorage.setItem('nv_learn_users_v2', JSON.stringify(usersData));
   localStorage.setItem('nv_learn_courses_v3', JSON.stringify(coursesData));
   localStorage.setItem('nv_learn_docs_v2', JSON.stringify(docsData));
+  localStorage.setItem('nv_learn_pending_prompts', JSON.stringify(pendingPromptsData));
 }
 
 // --- DOM ELEMENTS ---
 const el = {
   screenSetup: document.getElementById('screen-setup'),
   screenLogin: document.getElementById('screen-login'),
+  screenRegister: document.getElementById('screen-register'),
   screenApp: document.getElementById('screen-app'),
   loginEmailForm: document.getElementById('login-email-form'),
   sidebar: document.getElementById('sidebar'),
@@ -123,6 +130,22 @@ const el = {
 
 // --- INITIALIZATION ---
 function init() {
+  // Check for invite link (?invite=TOKEN)
+  const urlParams = new URLSearchParams(window.location.search);
+  const inviteParam = urlParams.get('invite');
+  if (inviteParam) {
+    if (inviteToken && inviteParam === inviteToken) {
+      // Valid invite link — show register screen
+      showScreen('register');
+      return;
+    } else {
+      // Invalid or revoked token
+      showScreen('login');
+      showToast('⚠️ Link mời không hợp lệ hoặc đã bị thu hồi.');
+      return;
+    }
+  }
+
   // First-run: no users in the system yet
   if (usersData.length === 0) {
     showScreen('setup');
@@ -144,9 +167,10 @@ function init() {
 
 // --- UTILS ---
 function showScreen(screen) {
-  el.screenSetup.style.display = screen === 'setup' ? 'flex' : 'none';
-  el.screenLogin.style.display = screen === 'login' ? 'flex' : 'none';
-  el.screenApp.style.display  = screen === 'app'   ? 'flex' : 'none';
+  el.screenSetup.style.display    = screen === 'setup'    ? 'flex' : 'none';
+  el.screenLogin.style.display    = screen === 'login'    ? 'flex' : 'none';
+  el.screenRegister.style.display = screen === 'register' ? 'flex' : 'none';
+  el.screenApp.style.display      = screen === 'app'      ? 'flex' : 'none';
 }
 
 function showToast(msg) {
@@ -220,6 +244,215 @@ function handleLogout() {
   currentUser = null;
   localStorage.removeItem('nv_learn_user');
   showScreen('login');
+}
+
+// --- FORGOT PASSWORD (self-service on login screen) ---
+function showForgotPanel() {
+  document.getElementById('panel-login').style.display = 'none';
+  document.getElementById('panel-forgot').style.display = 'block';
+  document.getElementById('login-card-title').textContent = '🔐 Quên mật khẩu';
+  document.getElementById('login-card-desc').textContent = 'Nhập email để đặt lại mật khẩu';
+  // reset state
+  document.getElementById('forgot-step-1').style.display = 'block';
+  document.getElementById('forgot-step-2').style.display = 'none';
+  document.getElementById('forgot-email').value = '';
+  document.getElementById('forgot-error-1').style.display = 'none';
+  document.getElementById('forgot-newpass').value = '';
+  document.getElementById('forgot-newpass2').value = '';
+  document.getElementById('forgot-error-2').style.display = 'none';
+}
+
+function showLoginPanel() {
+  document.getElementById('panel-login').style.display = 'block';
+  document.getElementById('panel-forgot').style.display = 'none';
+  document.getElementById('login-card-title').textContent = 'Chào mừng trở lại 👋';
+  document.getElementById('login-card-desc').textContent = 'Đăng nhập để bắt đầu hành trình học tập AI của bạn';
+}
+
+let _forgotUser = null; // temp store found user during 2-step flow
+
+function forgotStep1() {
+  const email = document.getElementById('forgot-email').value.trim();
+  const errEl = document.getElementById('forgot-error-1');
+  errEl.style.display = 'none';
+
+  if (!email) {
+    errEl.textContent = 'Vui lòng nhập email!';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const user = usersData.find(u => u.email === email);
+  if (!user) {
+    errEl.textContent = '❌ Không tìm thấy tài khoản với email này!';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  _forgotUser = user;
+  document.getElementById('forgot-email-confirmed').textContent =
+    `✅ Tìm thấy tài khoản: ${user.name}. Hãy đặt mật khẩu mới.`;
+  document.getElementById('forgot-step-1').style.display = 'none';
+  document.getElementById('forgot-step-2').style.display = 'block';
+}
+
+function forgotStep2() {
+  const pass  = document.getElementById('forgot-newpass').value;
+  const pass2 = document.getElementById('forgot-newpass2').value;
+  const errEl = document.getElementById('forgot-error-2');
+  errEl.style.display = 'none';
+
+  if (!pass || !pass2) {
+    errEl.textContent = 'Vui lòng nhập đầy đủ mật khẩu!';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (pass.length < 8) {
+    errEl.textContent = 'Mật khẩu phải có ít nhất 8 ký tự!';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (pass !== pass2) {
+    errEl.textContent = 'Mật khẩu xác nhận không khớp!';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // update in usersData
+  const user = usersData.find(u => u.id === _forgotUser.id);
+  user.password = pass;
+  saveSystemData();
+  _forgotUser = null;
+
+  showToast('✅ Mật khẩu đã được cập nhật! Hãy đăng nhập lại.');
+  showLoginPanel();
+}
+
+// --- ADMIN: RESET USER PASSWORD ---
+function openResetUserPasswordModal(userId) {
+  const user = usersData.find(u => u.id === userId);
+  if (!user) return;
+  document.getElementById('reset-target-user-id').value = userId;
+  document.getElementById('reset-target-user-name').textContent = `👤 ${user.name} (${user.email})`;
+  document.getElementById('reset-new-pw').value = '';
+  document.getElementById('reset-new-pw2').value = '';
+  document.getElementById('reset-pw-error').style.display = 'none';
+  openModal('modal-reset-user-pw');
+}
+
+function saveResetUserPassword() {
+  const userId = document.getElementById('reset-target-user-id').value;
+  const pass   = document.getElementById('reset-new-pw').value;
+  const pass2  = document.getElementById('reset-new-pw2').value;
+  const errEl  = document.getElementById('reset-pw-error');
+  errEl.style.display = 'none';
+
+  if (!pass || !pass2) {
+    errEl.textContent = 'Vui lòng nhập đầy đủ mật khẩu!';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (pass.length < 8) {
+    errEl.textContent = 'Mật khẩu phải có ít nhất 8 ký tự!';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (pass !== pass2) {
+    errEl.textContent = 'Mật khẩu xác nhận không khớp!';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const user = usersData.find(u => u.id === userId);
+  if (user) {
+    user.password = pass;
+    saveSystemData();
+    closeModal('modal-reset-user-pw');
+    showToast(`✅ Đã đặt lại mật khẩu cho ${user.name}!`);
+  }
+}
+
+// --- SELF REGISTRATION (via invite link) ---
+function handleSelfRegister() {
+  const name  = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const pass  = document.getElementById('reg-password').value;
+  const pass2 = document.getElementById('reg-password2').value;
+  const errEl = document.getElementById('register-error');
+
+  const showErr = (msg) => {
+    errEl.textContent = msg;
+    errEl.style.display = 'block';
+  };
+  errEl.style.display = 'none';
+
+  if (!name || !email || !pass || !pass2) return showErr('Vui lòng điền đầy đủ tất cả các trường!');
+  if (pass.length < 8)              return showErr('Mật khẩu phải có ít nhất 8 ký tự!');
+  if (pass !== pass2)               return showErr('Mật khẩu xác nhận không khớp!');
+  if (usersData.find(u => u.email === email)) return showErr('Email này đã được sử dụng!');
+
+  const newUser = {
+    id: 'u' + Date.now(),
+    name,
+    email,
+    password: pass,
+    role: 'learner',
+    avatar: name.charAt(0).toUpperCase()
+  };
+
+  usersData.push(newUser);
+  saveSystemData();
+  showToast('✅ Tài khoản đã được tạo! Chào mừng bạn đến với NV Learn!');
+  login(newUser);
+}
+
+// --- INVITE LINK MANAGEMENT ---
+function saveInviteToken() {
+  if (inviteToken) {
+    localStorage.setItem('nv_learn_invite_token', inviteToken);
+  } else {
+    localStorage.removeItem('nv_learn_invite_token');
+  }
+}
+
+function openInviteLinkModal() {
+  const activeEl = document.getElementById('invite-link-status-active');
+  const noneEl   = document.getElementById('invite-link-status-none');
+  if (inviteToken) {
+    activeEl.style.display = 'block';
+    noneEl.style.display   = 'none';
+    const baseUrl = window.location.href.split('?')[0];
+    document.getElementById('invite-link-display').textContent = `${baseUrl}?invite=${inviteToken}`;
+  } else {
+    activeEl.style.display = 'none';
+    noneEl.style.display   = 'block';
+  }
+  openModal('modal-invite-link');
+}
+
+function generateInviteLink() {
+  inviteToken = Math.random().toString(36).substr(2, 12) + Date.now().toString(36);
+  saveInviteToken();
+  openInviteLinkModal(); // refresh UI
+  showToast('✨ Đã tạo link mời mới!');
+}
+
+function revokeInviteLink() {
+  if (!confirm('Bạn có chắc muốn thu hồi link mời? Nhân viên dùng link cũ sẽ không thể đăng ký nữa.')) return;
+  inviteToken = null;
+  saveInviteToken();
+  openInviteLinkModal(); // refresh UI
+  showToast('🗑️ Link mời đã bị thu hồi!');
+}
+
+function copyInviteLink() {
+  const baseUrl = window.location.href.split('?')[0];
+  const fullLink = `${baseUrl}?invite=${inviteToken}`;
+  navigator.clipboard.writeText(fullLink).then(() => {
+    showToast('📋 Đã sao chép link mời!');
+  }).catch(() => {
+    prompt('Sao chép link bên dưới:', fullLink);
+  });
 }
 
 // --- NAVIGATION ---
@@ -344,6 +577,14 @@ function renderDashboard() {
     
     document.getElementById('admin-stat-rate').textContent = `${avgProgress}%`;
 
+    // Render pending prompts count
+    const pendingCount = pendingPromptsData.length;
+    const pendingBadge = document.getElementById('admin-pending-prompts-count');
+    if (pendingBadge) {
+      pendingBadge.textContent = pendingCount;
+      pendingBadge.style.display = pendingCount > 0 ? 'inline-block' : 'none';
+    }
+
     // Render users table
     let html = '';
     learners.forEach(u => {
@@ -363,6 +604,7 @@ function renderDashboard() {
           </td>
           <td>
             <div class="table-actions">
+              <button class="btn-sm" onclick="openResetUserPasswordModal('${u.id}')">🔑 Reset MK</button>
               <button class="btn-sm danger" onclick="deleteUser('${u.id}')">🗑️ Xóa</button>
             </div>
           </td>
