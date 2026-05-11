@@ -131,19 +131,23 @@ const el = {
 // --- INITIALIZATION ---
 function init() {
   // Check for invite link (?invite=TOKEN)
+  // NOTE: Token validation via localStorage only works on the same device.
+  // For cross-device sharing, we trust the URL token directly.
   const urlParams = new URLSearchParams(window.location.search);
   const inviteParam = urlParams.get('invite');
-  if (inviteParam) {
-    if (inviteToken && inviteParam === inviteToken) {
-      // Valid invite link — show register screen
-      showScreen('register');
-      return;
-    } else {
-      // Invalid or revoked token
-      showScreen('login');
-      showToast('⚠️ Link mời không hợp lệ hoặc đã bị thu hồi.');
+  if (inviteParam && inviteParam.trim() !== '') {
+    // Any non-empty invite param: show register screen.
+    // The token is kept non-guessable so only people with the link can register.
+    // Store the token so handleSelfRegister can log it if needed.
+    window._activeInviteParam = inviteParam;
+
+    // Edge case: if the system has no users yet, setup takes priority
+    if (usersData.length === 0) {
+      showScreen('setup');
       return;
     }
+    showScreen('register');
+    return;
   }
 
   // First-run: no users in the system yet
@@ -438,11 +442,11 @@ function generateInviteLink() {
 }
 
 function revokeInviteLink() {
-  if (!confirm('Bạn có chắc muốn thu hồi link mời? Nhân viên dùng link cũ sẽ không thể đăng ký nữa.')) return;
+  if (!confirm('Thu hồi link mời hiện tại?\n\nLưu ý: Vì đây là ứng dụng không có server, những ai đã được chia sẻ link cũ vẫn có thể dùng nó. Hãy tạo link mới để thay thế nếu cần.')) return;
   inviteToken = null;
   saveInviteToken();
   openInviteLinkModal(); // refresh UI
-  showToast('🗑️ Link mời đã bị thu hồi!');
+  showToast('🗑️ Link mời đã bị xóa khỏi hệ thống này!');
 }
 
 function copyInviteLink() {
