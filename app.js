@@ -5,14 +5,14 @@
 
 // --- MOCK DATA ---
 
-// --- USER DATA (loaded from localStorage, no demo accounts) ---
-let usersData = JSON.parse(localStorage.getItem('nv_learn_users_v2')) || [];
+// --- USER DATA ---
+let usersData = [];
 
 // Invite token for self-registration
-let inviteToken = localStorage.getItem('nv_learn_invite_token') || null;
+let inviteToken = null;
 
 
-let coursesData = JSON.parse(localStorage.getItem('nv_learn_courses_v3')) || [
+let coursesData = [
   {
     id: 'c1',
     title: 'GIAI ĐOẠN 1: AI STRATEGY & MINDSET',
@@ -87,17 +87,17 @@ let coursesData = JSON.parse(localStorage.getItem('nv_learn_courses_v3')) || [
   }
 ];
 
-let docsData = JSON.parse(localStorage.getItem('nv_learn_docs_v2')) || [
+let docsData = [
   { id: 'd0', title: 'Thư viện Prompt Thông minh', desc: 'Tra cứu & Copy nhanh 100+ câu lệnh AI cho mọi nghiệp vụ của Ngọc Việt Group.', link: 'prompt-library.html' },
   { id: 'd1', title: 'Sổ tay nhân sự 2026', desc: 'Quy định và chính sách công ty', link: '#' },
   { id: 'd2', title: 'Quy trình vận hành AI', desc: 'Hướng dẫn áp dụng AI Agent nội bộ', link: '#' }
 ];
 
-let pendingPromptsData = JSON.parse(localStorage.getItem('nv_learn_pending_prompts')) || [];
+let pendingPromptsData = [];
 
 // --- APP STATE ---
 let currentUser = null;
-let userProgress = JSON.parse(localStorage.getItem('nv_learn_progress_v3')) || {}; 
+let userProgress = {}; 
 // format: { userId: { moduleId: true } }
 let currentAdminCourse = null;
 
@@ -128,13 +128,6 @@ async function fetchCloudData() {
       if (data.pendingPromptsData) pendingPromptsData = data.pendingPromptsData;
       if (data.userProgress) userProgress = data.userProgress;
       if (data.inviteToken !== undefined) inviteToken = data.inviteToken;
-    } else {
-      // Firebase chưa có dữ liệu, nhưng máy Admin (localStorage) đang có dữ liệu
-      // => Tự động đồng bộ lần đầu tiên lên Cloud.
-      if (usersData && usersData.length > 0) {
-        console.log("Đồng bộ dữ liệu Admin lần đầu lên Cloud...");
-        saveSystemData();
-      }
     }
   } catch(e) {
     console.error("Lỗi tải dữ liệu từ Firebase:", e);
@@ -142,12 +135,6 @@ async function fetchCloudData() {
 }
 
 function saveSystemData() {
-  // Lưu cục bộ đề phòng
-  localStorage.setItem('nv_learn_users_v2', JSON.stringify(usersData));
-  localStorage.setItem('nv_learn_courses_v3', JSON.stringify(coursesData));
-  localStorage.setItem('nv_learn_docs_v2', JSON.stringify(docsData));
-  localStorage.setItem('nv_learn_pending_prompts', JSON.stringify(pendingPromptsData));
-  
   // Lưu lên Cloud
   if (db) {
     db.collection('ngocviet_app').doc('data_v1').set({
