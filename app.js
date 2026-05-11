@@ -128,6 +128,13 @@ async function fetchCloudData() {
       if (data.pendingPromptsData) pendingPromptsData = data.pendingPromptsData;
       if (data.userProgress) userProgress = data.userProgress;
       if (data.inviteToken !== undefined) inviteToken = data.inviteToken;
+    } else {
+      // Firebase chưa có dữ liệu, nhưng máy Admin (localStorage) đang có dữ liệu
+      // => Tự động đồng bộ lần đầu tiên lên Cloud.
+      if (usersData && usersData.length > 0) {
+        console.log("Đồng bộ dữ liệu Admin lần đầu lên Cloud...");
+        saveSystemData();
+      }
     }
   } catch(e) {
     console.error("Lỗi tải dữ liệu từ Firebase:", e);
