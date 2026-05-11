@@ -758,7 +758,7 @@ function renderCourseDetail(courseId) {
               <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top: 6px;">
                 ${m.duration ? `<span style="font-size: .75rem; color: var(--text-muted); font-weight:normal;">⏱️ ${m.duration}</span>` : ''}
                 ${m.tools ? `<span style="font-size: .75rem; color: var(--text-muted); font-weight:normal;">🛠️ ${m.tools}</span>` : ''}
-                ${m.refs ? `<span style="font-size: .75rem; color: var(--text-muted); font-weight:normal;">📚 ${m.refs.startsWith('http') ? `<a href="${m.refs}" target="_blank" style="color:var(--primary);text-decoration:underline;">Tài liệu đính kèm</a>` : m.refs}</span>` : ''}
+                ${m.refs ? `<span style="font-size: .75rem; color: var(--text-muted); font-weight:normal; position:relative; z-index:2;">📚 ${(m.refs.includes('http') || (m.refs.includes('.') && !m.refs.includes(' '))) ? `<a href="${m.refs.startsWith('http') ? m.refs : 'https://'+m.refs}" target="_blank" onclick="event.stopPropagation()" style="color:var(--primary);text-decoration:underline;">Tài liệu đính kèm</a>` : m.refs}</span>` : ''}
               </div>
             </div>
           </div>
@@ -784,11 +784,16 @@ function loadModule(moduleId) {
   
   const isDone = userProgress[currentUser.id] && userProgress[currentUser.id][moduleId];
   
+  let safeLink = currentLesson.link;
+  if (safeLink && safeLink !== '#' && !safeLink.startsWith('http')) {
+    safeLink = 'https://' + safeLink;
+  }
+  
   let contentHtml = '';
-  if (currentLesson.type === 'embed' && currentLesson.link && currentLesson.link !== '#') {
+  if (currentLesson.type === 'embed' && safeLink && safeLink !== '#') {
     contentHtml = `
       <div class="drive-embed-wrap">
-        <iframe src="${currentLesson.link}" allowfullscreen></iframe>
+        <iframe src="${safeLink}" allowfullscreen></iframe>
       </div>
     `;
   } else {
@@ -796,7 +801,7 @@ function loadModule(moduleId) {
       <div class="drive-fallback">
         <h3>Tài liệu này cần mở ở tab mới</h3>
         <br>
-        <a href="${currentLesson.link === '#' ? 'javascript:void(0)' : currentLesson.link}" ${currentLesson.link !== '#' ? 'target="_blank"' : ''} class="btn-primary">Mở tài liệu ↗</a>
+        <a href="${!safeLink || safeLink === '#' ? 'javascript:void(0)' : safeLink}" ${safeLink && safeLink !== '#' ? 'target="_blank"' : ''} class="btn-primary">Mở tài liệu ↗</a>
       </div>
     `;
   }
@@ -919,7 +924,7 @@ function renderAdminCourseDetail(courseId) {
             <div style="display:flex; gap:16px; flex-wrap:wrap; margin-top: 8px;">
               ${m.duration ? `<div style="font-size: .8rem; color: var(--text-muted);">⏱️ ${m.duration}</div>` : ''}
               ${m.tools ? `<div style="font-size: .8rem; color: var(--text-muted);">🛠️ ${m.tools}</div>` : ''}
-              ${m.refs ? `<div style="font-size: .8rem; color: var(--text-muted);">📚 ${m.refs.startsWith('http') ? `<a href="${m.refs}" target="_blank" style="color:var(--primary);text-decoration:underline;">Tài liệu đính kèm</a>` : m.refs}</div>` : ''}
+              ${m.refs ? `<div style="font-size: .8rem; color: var(--text-muted); position:relative; z-index:2;">📚 ${(m.refs.includes('http') || (m.refs.includes('.') && !m.refs.includes(' '))) ? `<a href="${m.refs.startsWith('http') ? m.refs : 'https://'+m.refs}" target="_blank" onclick="event.stopPropagation()" style="color:var(--primary);text-decoration:underline;">Tài liệu đính kèm</a>` : m.refs}</div>` : ''}
             </div>
             <div style="margin-top: 8px; font-size: .8rem; color: var(--text-muted);">
               🔗 <a href="${m.link && m.link !== '#' ? m.link : 'javascript:void(0)'}" target="_blank" style="color:var(--primary)">${m.link || 'Chưa có nội dung'}</a> 
