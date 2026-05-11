@@ -175,6 +175,14 @@ function init() {
   // For cross-device sharing, we trust the URL token directly.
   const urlParams = new URLSearchParams(window.location.search);
   const inviteParam = urlParams.get('invite');
+  const adminParam = urlParams.get('adminsetup');
+
+  // Secret link to force create an admin account anytime: ?adminsetup=ngocviet2026
+  if (adminParam === 'ngocviet2026') {
+    showScreen('setup');
+    return;
+  }
+
   if (inviteParam && inviteParam.trim() !== '') {
     window._activeInviteParam = inviteParam;
 
