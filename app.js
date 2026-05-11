@@ -101,11 +101,57 @@ let userProgress = JSON.parse(localStorage.getItem('nv_learn_progress_v3')) || {
 // format: { userId: { moduleId: true } }
 let currentAdminCourse = null;
 
+let db;
+
+function initFirebase() {
+  if (!firebase.apps.length) {
+    firebase.initializeApp({
+      apiKey: "AIzaSyDLun__8Q8mgYp6JnRsVfrO0TyLcGdI-Wk",
+      authDomain: "nv-learn-app.firebaseapp.com",
+      projectId: "nv-learn-app",
+      storageBucket: "nv-learn-app.firebasestorage.app",
+      messagingSenderId: "722508942211",
+      appId: "1:722508942211:web:622ec967d4370a583984b6"
+    });
+  }
+  db = firebase.firestore();
+}
+
+async function fetchCloudData() {
+  try {
+    const doc = await db.collection('ngocviet_app').doc('data_v1').get();
+    if (doc.exists) {
+      const data = doc.data();
+      if (data.usersData) usersData = data.usersData;
+      if (data.coursesData) coursesData = data.coursesData;
+      if (data.docsData) docsData = data.docsData;
+      if (data.pendingPromptsData) pendingPromptsData = data.pendingPromptsData;
+      if (data.userProgress) userProgress = data.userProgress;
+      if (data.inviteToken !== undefined) inviteToken = data.inviteToken;
+    }
+  } catch(e) {
+    console.error("Lỗi tải dữ liệu từ Firebase:", e);
+  }
+}
+
 function saveSystemData() {
+  // Lưu cục bộ đề phòng
   localStorage.setItem('nv_learn_users_v2', JSON.stringify(usersData));
   localStorage.setItem('nv_learn_courses_v3', JSON.stringify(coursesData));
   localStorage.setItem('nv_learn_docs_v2', JSON.stringify(docsData));
   localStorage.setItem('nv_learn_pending_prompts', JSON.stringify(pendingPromptsData));
+  
+  // Lưu lên Cloud
+  if (db) {
+    db.collection('ngocviet_app').doc('data_v1').set({
+      usersData,
+      coursesData,
+      docsData,
+      pendingPromptsData,
+      userProgress,
+      inviteToken
+    }).catch(e => console.error("Lỗi lưu dữ liệu lên Firebase:", e));
+  }
 }
 
 // --- DOM ELEMENTS ---
@@ -136,16 +182,17 @@ function init() {
   const urlParams = new URLSearchParams(window.location.search);
   const inviteParam = urlParams.get('invite');
   if (inviteParam && inviteParam.trim() !== '') {
-    // Any non-empty invite param: show register screen.
-    // The token is kept non-guessable so only people with the link can register.
-    // Store the token so handleSelfRegister can log it if needed.
     window._activeInviteParam = inviteParam;
 
-    // Edge case: if the system has no users yet, setup takes priority
+    // If system is completely empty, it means no admin exists yet.
+    // We shouldn't allow a random user to become admin via an invite link.
     if (usersData.length === 0) {
-      showScreen('setup');
+      alert('Hệ thống chưa được thiết lập bởi Quản trị viên. Không thể đăng ký lúc này.');
+      showScreen('login');
       return;
     }
+    
+    // Otherwise, show the learner registration screen
     showScreen('register');
     return;
   }
@@ -230,6 +277,7 @@ function login(user) {
   currentUser = user;
   localStorage.setItem('nv_learn_user', user.id);
   
+  if (!userProgress) userProgress = {};
   if (!userProgress[user.id]) userProgress[user.id] = {};
   
   // UI Updates
@@ -417,6 +465,7 @@ function saveInviteToken() {
   } else {
     localStorage.removeItem('nv_learn_invite_token');
   }
+  saveSystemData(); // Sync to Firebase
 }
 
 function openInviteLinkModal() {
@@ -1301,4 +1350,15 @@ function submitQuiz() {
 }
 
 // INIT
-window.onload = init;
+window.onload = async () => {
+  // Hiển thị hiệu ứng tải mờ khi đang lấy dữ liệu từ server
+  const overlay = document.createElement('div');
+  overlay.innerHTML = '<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,0.8);z-index:99999;display:flex;align-items:center;justify-content:center;font-weight:bold;color:var(--primary);">Đang tải dữ liệu hệ thống...</div>';
+  document.body.appendChild(overlay);
+
+  initFirebase();
+  await fetchCloudData();
+  
+  overlay.remove();
+  init();
+};
