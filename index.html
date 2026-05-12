@@ -512,6 +512,35 @@
   </div>
 </div>
 
+<!-- Edit Doc Modal -->
+<div class="modal-overlay" id="modal-edit-doc" onclick="closeModalOutside(event, 'modal-edit-doc')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 class="modal-title">Chỉnh sửa tài liệu tham khảo</h3>
+      <button class="modal-close" onclick="closeModal('modal-edit-doc')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-doc-id" />
+      <div class="form-group">
+        <label class="form-label">Tên tài liệu *</label>
+        <input class="form-input" type="text" id="edit-doc-title" placeholder="VD: Sổ tay nhân sự 2026" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mô tả ngắn</label>
+        <textarea class="form-input" id="edit-doc-desc" rows="2" placeholder="Ghi chú thêm về tài liệu..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Link tài liệu (Drive/Web) *</label>
+        <input class="form-input" type="url" id="edit-doc-link" placeholder="https://..." />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-edit-doc')">Hủy</button>
+      <button class="btn-primary" onclick="saveEditDoc()">Lưu thay đổi</button>
+    </div>
+  </div>
+</div>
+
 <!-- Add Course Modal -->
 <div class="modal-overlay" id="modal-add-course" onclick="closeModalOutside(event, 'modal-add-course')">
   <div class="modal-box">

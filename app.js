@@ -869,7 +869,11 @@ function renderDocs() {
           ${d.desc ? `<p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:16px;">${d.desc}</p>` : ''}
           <div style="display:flex; justify-content:space-between; align-items:center; margin-top:auto;">
             <a href="${d.link}" target="_blank" class="btn-primary" style="padding:8px 16px; font-size:.85rem; text-decoration:none;">Mở tài liệu</a>
-            ${currentUser.role === 'admin' ? `<button class="btn-sm danger" onclick="deleteDoc('${d.id}')" style="padding:6px 12px; font-size:.8rem;">Xóa</button>` : ''}
+            ${currentUser.role === 'admin' ? `
+              <div style="display:flex; gap: 8px;">
+                <button class="btn-sm" onclick="openEditDocModal('${d.id}')" style="padding:6px 12px; font-size:.8rem;">Sửa</button>
+                <button class="btn-sm danger" onclick="deleteDoc('${d.id}')" style="padding:6px 12px; font-size:.8rem;">Xóa</button>
+              </div>` : ''}
           </div>
         </div>
       `;
@@ -904,6 +908,36 @@ function deleteDoc(id) {
     renderDocs();
     showToast('Đã xóa tài liệu!');
   }
+}
+
+function openEditDocModal(id) {
+  const doc = docsData.find(d => d.id === id);
+  if (!doc) return;
+  document.getElementById('edit-doc-id').value = doc.id;
+  document.getElementById('edit-doc-title').value = doc.title;
+  document.getElementById('edit-doc-desc').value = doc.desc || '';
+  document.getElementById('edit-doc-link').value = doc.link;
+  openModal('modal-edit-doc');
+}
+
+function saveEditDoc() {
+  const id = document.getElementById('edit-doc-id').value;
+  const title = document.getElementById('edit-doc-title').value;
+  const desc = document.getElementById('edit-doc-desc').value;
+  const link = document.getElementById('edit-doc-link').value;
+  
+  if(!title || !link) return alert('Vui lòng nhập tên và link tài liệu!');
+  
+  const doc = docsData.find(d => d.id === id);
+  if (doc) {
+    doc.title = title;
+    doc.desc = desc;
+    doc.link = link;
+    saveSystemData();
+    renderDocs();
+    showToast('Đã cập nhật tài liệu!');
+  }
+  closeModal('modal-edit-doc');
 }
 
 function renderAdminCourseDetail(courseId) {
