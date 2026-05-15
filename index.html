@@ -219,7 +219,9 @@
       <a class="nav-item" id="nav-docs" onclick="navigate('docs')">
         <span class="nav-icon">📂</span><span class="nav-label">Tài liệu</span>
       </a>
-
+      <a class="nav-item" id="nav-messages" onclick="navigate('messages')" style="display:none;">
+        <span class="nav-icon">💬</span><span class="nav-label">Tin nhắn</span>
+      </a>
     </nav>
 
     <div class="sidebar-footer">
@@ -471,6 +473,30 @@
               </div>
               <div id="admin-course-students" style="background: var(--surface); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow);">
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── MESSAGES PAGE (Admin) ── -->
+      <div id="page-messages" class="page">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Tin nhắn hỗ trợ</h2>
+            <p class="page-subtitle">Quản lý và phản hồi tin nhắn từ học viên</p>
+          </div>
+        </div>
+        <div style="display:flex; height: 600px; background:var(--surface); border-radius:var(--radius); border:1px solid var(--border); overflow:hidden;">
+          <div style="width: 300px; border-right:1px solid var(--border); display:flex; flex-direction:column;">
+            <div style="padding:16px; border-bottom:1px solid var(--border); font-weight:600;">Danh sách học viên</div>
+            <div id="admin-chat-list" style="flex:1; overflow-y:auto;"></div>
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; background:var(--bg);">
+            <div id="admin-chat-header" style="padding:16px; border-bottom:1px solid var(--border); font-weight:600; display:flex; align-items:center;">Chọn một học viên để xem tin nhắn</div>
+            <div id="admin-chat-history" style="flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:8px;"></div>
+            <div id="admin-chat-input-area" style="padding:16px; border-top:1px solid var(--border); display:none; gap:8px; background:var(--surface);">
+              <input type="text" id="adminChatInput" placeholder="Nhập phản hồi..." style="flex:1; padding:10px; border-radius:6px; border:1px solid var(--border); background:var(--bg); color:var(--text);" onkeydown="if(event.key==='Enter') sendAdminMessage()" />
+              <button class="btn-primary" onclick="sendAdminMessage()">Gửi</button>
             </div>
           </div>
         </div>
@@ -856,6 +882,26 @@
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeModal('modal-invite-link')">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHAT WIDGET (Learner) -->
+<div class="chat-widget" id="chatWidget" style="display:none;">
+  <button class="chat-btn" id="chatBtn" onclick="toggleChat()" aria-label="Nhắn tin cho Admin">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+  </button>
+  <div class="chat-box" id="chatBox">
+    <div class="chat-header">
+      <h4>Trợ giúp & Góp ý</h4>
+      <button class="chat-close" onclick="toggleChat()" aria-label="Đóng">×</button>
+    </div>
+    <div class="chat-body" style="display:flex; flex-direction:column; height:350px; padding:16px;">
+      <div id="chatHistory" style="flex:1; overflow-y:auto; margin-bottom:10px; display:flex; flex-direction:column; gap:8px;"></div>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="chatInput" placeholder="Nhập tin nhắn..." style="flex:1; padding:8px; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--text);" onkeydown="if(event.key==='Enter') sendLearnerMessage()" />
+        <button class="btn-primary" onclick="sendLearnerMessage()" style="padding:8px 12px;">Gửi</button>
+      </div>
     </div>
   </div>
 </div>

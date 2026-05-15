@@ -494,3 +494,20 @@ select.form-input { cursor: pointer; }
   .topbar-actions .search-box { display: none; }
   .login-card { padding: 28px 20px; }
 }
+
+/* ─── CHAT WIDGET & MESSAGES ─── */
+.chat-widget { position: fixed; bottom: 32px; right: 32px; z-index: 999; }
+.chat-btn { width: 56px; height: 56px; border-radius: 50%; background: var(--primary); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(66,133,244,0.3); transition: all 0.3s; }
+.chat-btn:hover { transform: translateY(-3px) scale(1.05); box-shadow: 0 8px 15px rgba(66,133,244,0.4); }
+.chat-box { position: absolute; bottom: 80px; right: 0; width: 340px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-lg); opacity: 0; pointer-events: none; transform: translateY(20px) scale(0.95); transform-origin: bottom right; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.chat-box.open { opacity: 1; pointer-events: all; transform: translateY(0) scale(1); }
+.chat-header { padding: 14px 16px; background: var(--surface2); border-bottom: 1px solid var(--border); border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center; }
+.chat-header h4 { font-size: 15px; font-weight: 600; margin:0; }
+.chat-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted); }
+.chat-close:hover { color: var(--text); }
+.msg-bubble { padding: 8px 12px; border-radius: 8px; max-width: 80%; font-size: 14px; line-height: 1.4; word-wrap: break-word; }
+.msg-bubble.sent { background: var(--primary); color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+.msg-bubble.received { background: var(--surface2); color: var(--text); align-self: flex-start; border-bottom-left-radius: 2px; }
+.chat-user-item { padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.2s; }
+.chat-user-item:hover { background: var(--surface2); }
+.chat-user-item.active { background: var(--primary-light); border-left: 3px solid var(--primary); }

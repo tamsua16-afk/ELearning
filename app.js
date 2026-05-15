@@ -10,6 +10,7 @@ let usersData = [];
 
 // Invite token for self-registration
 let inviteToken = null;
+let messagesData = [];
 
 
 let coursesData = [
@@ -46,18 +47,18 @@ let coursesData = [
       },
       {
         id: 'm2_B',
-        title: 'Buổi 03: AI Quản trị tri thức & Presentation/Visual',
-        desc: '- AI Quản trị tri thức: Biến kho tài liệu nội bộ thành "trợ lý thông minh".\n- AI Presentation & Visual: Thiết kế Slide thuyết trình chuyên nghiệp và hình ảnh thương hiệu.',
-        tools: 'NotebookLM, Gamma, Imagen 3',
+        title: 'Buổi 03: AI Quản trị tri thức & Data Analysis',
+        desc: '- AI tạo Báo cáo & Tài liệu: Xử lý văn bản dài, tóm tắt hợp đồng và quy định nội bộ (NotebookLM).\n- AI Data Analysis & Investment: Phân tích dữ liệu tài chính, đầu tư năng lượng – Python AI không cần lập trình.',
+        tools: 'NotebookLM, Gemini Data Analyst',
         duration: '90 phút',
         link: '#',
         type: 'embed'
       },
       {
         id: 'm2_C',
-        title: 'Buổi 04: AI Video & Media + Data Analysis',
-        desc: '- AI Video & Media: Khởi tạo Video kể chuyện, giới thiệu dự án và đào tạo nội bộ.\n- AI Data Analysis: Phân tích báo cáo tài chính, thị trường và dự báo đầu tư không dùng hàm.',
-        tools: 'Google Vids, Gemini (Analysis)',
+        title: 'Buổi 04: AI Visual, Presentation & Video Media',
+        desc: '- AI Presentation & Visual Strategy: Thiết kế slide thuyết trình đỉnh cao, đồng bộ nhận diện thương hiệu.\n- AI Marketing Content Engine: Sản xuất nội dung đa kênh tự động – Text, Image, Video AI.',
+        tools: 'Gamma, Imagen 3, Gemini, VEO 3',
         duration: '90 phút',
         link: '#',
         type: 'embed'
@@ -128,6 +129,7 @@ async function fetchCloudData() {
       if (data.pendingPromptsData) pendingPromptsData = data.pendingPromptsData;
       if (data.userProgress) userProgress = data.userProgress;
       if (data.inviteToken !== undefined) inviteToken = data.inviteToken;
+      if (data.messagesData) messagesData = data.messagesData;
     }
   } catch(e) {
     console.error("Lỗi tải dữ liệu từ Firebase:", e);
@@ -143,7 +145,8 @@ function saveSystemData() {
       docsData,
       pendingPromptsData,
       userProgress,
-      inviteToken
+      inviteToken,
+      messagesData
     }).catch(e => console.error("Lỗi lưu dữ liệu lên Firebase:", e));
   }
 }
@@ -286,6 +289,19 @@ function login(user) {
   document.getElementById('sidebar-username').textContent = user.name;
   document.getElementById('sidebar-role').textContent = user.role === 'admin' ? 'Quản trị viên' : 'Học viên';
   document.getElementById('sidebar-avatar').textContent = user.avatar;
+  
+  const navMsg = document.getElementById('nav-messages');
+  const chatW = document.getElementById('chatWidget');
+  if (user.role === 'admin') {
+    if (navMsg) navMsg.style.display = 'flex';
+    if (chatW) chatW.style.display = 'none';
+  } else {
+    if (navMsg) navMsg.style.display = 'none';
+    if (chatW) {
+      chatW.style.display = 'block';
+      renderLearnerChat();
+    }
+  }
   
 
 
@@ -544,6 +560,7 @@ function navigate(pageId) {
   if (pageId === 'courses') renderCourses();
   if (pageId === 'docs') renderDocs();
   if (pageId === 'admin') renderAdmin();
+  if (pageId === 'messages') renderAdminMessages();
 }
 
 function toggleSidebar() {
@@ -1388,6 +1405,157 @@ function submitQuiz() {
   } else {
     alert(`⚠️ Bạn mới đạt ${score}/${total} điểm (Yêu cầu 80% để qua bài). Hãy xem lại bài giảng và làm lại nhé!`);
   }
+}
+
+// --- CHAT / MESSAGES ---
+let currentAdminChatUserId = null;
+
+function toggleChat() {
+  const box = document.getElementById('chatBox');
+  if (box) {
+    box.classList.toggle('open');
+    if (box.classList.contains('open')) {
+      renderLearnerChat();
+      setTimeout(() => {
+        const h = document.getElementById('chatHistory');
+        if (h) h.scrollTop = h.scrollHeight;
+      }, 100);
+    }
+  }
+}
+
+function renderLearnerChat() {
+  if (!currentUser || currentUser.role !== 'learner') return;
+  const historyEl = document.getElementById('chatHistory');
+  if (!historyEl) return;
+  const myMsgs = messagesData.filter(m => m.senderId === currentUser.id || m.receiverId === currentUser.id);
+  
+  let html = '';
+  myMsgs.forEach(m => {
+    const isMine = m.senderId === currentUser.id;
+    html += `<div class="msg-bubble ${isMine ? 'sent' : 'received'}">${m.content}</div>`;
+  });
+  
+  if (myMsgs.length === 0) {
+    html = `<div style="text-align:center; color:var(--text-muted); font-size:13px; margin-top:20px;">Chưa có tin nhắn nào.<br>Hãy gửi thắc mắc của bạn!</div>`;
+  }
+  historyEl.innerHTML = html;
+}
+
+function sendLearnerMessage() {
+  const input = document.getElementById('chatInput');
+  if (!input) return;
+  const content = input.value.trim();
+  if (!content) return;
+  
+  messagesData.push({
+    id: 'msg_' + Date.now(),
+    senderId: currentUser.id,
+    receiverId: 'admin',
+    content: content,
+    timestamp: Date.now(),
+    read: false
+  });
+  
+  input.value = '';
+  saveSystemData();
+  renderLearnerChat();
+  setTimeout(() => {
+    const h = document.getElementById('chatHistory');
+    if (h) h.scrollTop = h.scrollHeight;
+  }, 50);
+}
+
+function renderAdminMessages() {
+  const listEl = document.getElementById('admin-chat-list');
+  if (!listEl) return;
+  const learners = usersData.filter(u => u.role === 'learner');
+  
+  let html = '';
+  learners.forEach(learner => {
+    const learnerMsgs = messagesData.filter(m => m.senderId === learner.id || m.receiverId === learner.id);
+    const unreadCount = learnerMsgs.filter(m => m.senderId === learner.id && m.receiverId === 'admin' && !m.read).length;
+    const lastMsg = learnerMsgs.length > 0 ? learnerMsgs[learnerMsgs.length - 1].content : 'Chưa có tin nhắn';
+    
+    html += `
+      <div class="chat-user-item ${currentAdminChatUserId === learner.id ? 'active' : ''}" onclick="selectAdminChat('${learner.id}')">
+        <div style="font-weight:600; display:flex; justify-content:space-between; margin-bottom:4px; font-size:14px;">
+          ${learner.name}
+          ${unreadCount > 0 ? `<span style="background:var(--danger, #ef4444); color:white; border-radius:10px; padding:2px 6px; font-size:11px;">${unreadCount}</span>` : ''}
+        </div>
+        <div style="font-size:12px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${lastMsg}</div>
+      </div>
+    `;
+  });
+  listEl.innerHTML = html;
+  
+  if (currentAdminChatUserId) {
+    renderAdminChatHistory();
+  }
+}
+
+function selectAdminChat(learnerId) {
+  currentAdminChatUserId = learnerId;
+  
+  // Mark as read
+  messagesData.forEach(m => {
+    if (m.senderId === learnerId && m.receiverId === 'admin') {
+      m.read = true;
+    }
+  });
+  saveSystemData();
+  
+  const learner = usersData.find(u => u.id === learnerId);
+  const headerEl = document.getElementById('admin-chat-header');
+  if (headerEl) headerEl.innerHTML = `Tin nhắn với: <strong>${learner ? learner.name : ''}</strong>`;
+  
+  const inputArea = document.getElementById('admin-chat-input-area');
+  if (inputArea) inputArea.style.display = 'flex';
+  
+  renderAdminMessages(); // re-render list to remove unread badge and update active state
+  renderAdminChatHistory();
+}
+
+function renderAdminChatHistory() {
+  if (!currentAdminChatUserId) return;
+  const historyEl = document.getElementById('admin-chat-history');
+  if (!historyEl) return;
+  const myMsgs = messagesData.filter(m => m.senderId === currentAdminChatUserId || m.receiverId === currentAdminChatUserId);
+  
+  let html = '';
+  myMsgs.forEach(m => {
+    const isAdmin = m.senderId === 'admin' || m.senderId === currentUser.id;
+    html += `<div class="msg-bubble ${isAdmin ? 'sent' : 'received'}">${m.content}</div>`;
+  });
+  
+  if (myMsgs.length === 0) {
+    html = `<div style="text-align:center; color:var(--text-muted); font-size:13px; margin-top:20px;">Chưa có tin nhắn.</div>`;
+  }
+  historyEl.innerHTML = html;
+  setTimeout(() => {
+    historyEl.scrollTop = historyEl.scrollHeight;
+  }, 50);
+}
+
+function sendAdminMessage() {
+  if (!currentAdminChatUserId) return;
+  const input = document.getElementById('adminChatInput');
+  if (!input) return;
+  const content = input.value.trim();
+  if (!content) return;
+  
+  messagesData.push({
+    id: 'msg_' + Date.now(),
+    senderId: 'admin',
+    receiverId: currentAdminChatUserId,
+    content: content,
+    timestamp: Date.now(),
+    read: false
+  });
+  
+  input.value = '';
+  saveSystemData();
+  renderAdminChatHistory();
 }
 
 // INIT
