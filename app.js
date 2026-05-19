@@ -1558,6 +1558,37 @@ function sendAdminMessage() {
   renderAdminChatHistory();
 }
 
+function sendBulkAdminMessage() {
+  const input = document.getElementById('bulk-message-content');
+  if (!input) return;
+  const content = input.value.trim();
+  if (!content) return alert('Vui lòng nhập nội dung tin nhắn!');
+  
+  const learners = usersData.filter(u => u.role === 'learner');
+  if (learners.length === 0) return alert('Hệ thống chưa có học viên nào!');
+  
+  const now = Date.now();
+  let count = 0;
+  
+  learners.forEach((learner, index) => {
+    messagesData.push({
+      id: 'msg_bulk_' + now + '_' + index,
+      senderId: 'admin',
+      receiverId: learner.id,
+      content: content,
+      timestamp: now,
+      read: false
+    });
+    count++;
+  });
+  
+  input.value = '';
+  saveSystemData();
+  closeModal('modal-bulk-message');
+  showToast(`✅ Đã gửi tin nhắn đến ${count} học viên!`);
+  renderAdminMessages();
+}
+
 // INIT
 window.onload = async () => {
   // Hiển thị hiệu ứng tải mờ khi đang lấy dữ liệu từ server

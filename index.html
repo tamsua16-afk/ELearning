@@ -485,6 +485,7 @@
             <h2 class="page-title">Tin nhắn hỗ trợ</h2>
             <p class="page-subtitle">Quản lý và phản hồi tin nhắn từ học viên</p>
           </div>
+          <button class="btn-primary" onclick="openModal('modal-bulk-message')">Gửi tin hàng loạt</button>
         </div>
         <div style="display:flex; height: 600px; background:var(--surface); border-radius:var(--radius); border:1px solid var(--border); overflow:hidden;">
           <div style="width: 300px; border-right:1px solid var(--border); display:flex; flex-direction:column;">
@@ -768,6 +769,26 @@
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeModal('modal-edit-module')">Hủy</button>
       <button class="btn-primary" onclick="saveEditModule()">Lưu thay đổi</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Bulk Message Modal -->
+<div class="modal-overlay" id="modal-bulk-message" onclick="closeModalOutside(event, 'modal-bulk-message')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 class="modal-title">Gửi tin nhắn hàng loạt</h3>
+      <button class="modal-close" onclick="closeModal('modal-bulk-message')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Nội dung tin nhắn *</label>
+        <textarea class="form-input" id="bulk-message-content" rows="4" placeholder="Nhập nội dung tin nhắn gửi đến tất cả học viên..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-bulk-message')">Hủy</button>
+      <button class="btn-primary" onclick="sendBulkAdminMessage()">Gửi ngay</button>
     </div>
   </div>
 </div>
