@@ -303,7 +303,7 @@ function login(user) {
     }
   }
   
-
+  updateUnreadBadges();
 
   showScreen('app');
   navigate('dashboard');
@@ -1410,11 +1410,44 @@ function submitQuiz() {
 // --- CHAT / MESSAGES ---
 let currentAdminChatUserId = null;
 
+function updateUnreadBadges() {
+  if (!currentUser) return;
+  const adminBadge = document.getElementById('admin-unread-badge');
+  const learnerBadge = document.getElementById('learner-unread-badge');
+  
+  if (currentUser.role === 'admin') {
+    const unreadAdminCount = messagesData.filter(m => m.receiverId === 'admin' && !m.read).length;
+    if (adminBadge) {
+      adminBadge.textContent = unreadAdminCount;
+      adminBadge.style.display = unreadAdminCount > 0 ? 'inline-block' : 'none';
+    }
+  } else if (currentUser.role === 'learner') {
+    const unreadLearnerCount = messagesData.filter(m => m.receiverId === currentUser.id && !m.read).length;
+    if (learnerBadge) {
+      learnerBadge.textContent = unreadLearnerCount;
+      learnerBadge.style.display = unreadLearnerCount > 0 ? 'inline-block' : 'none';
+    }
+  }
+}
+
 function toggleChat() {
   const box = document.getElementById('chatBox');
   if (box) {
     box.classList.toggle('open');
     if (box.classList.contains('open')) {
+      if (currentUser && currentUser.role === 'learner') {
+        let changed = false;
+        messagesData.forEach(m => {
+          if (m.receiverId === currentUser.id && !m.read) {
+            m.read = true;
+            changed = true;
+          }
+        });
+        if (changed) {
+          saveSystemData();
+          updateUnreadBadges();
+        }
+      }
       renderLearnerChat();
       setTimeout(() => {
         const h = document.getElementById('chatHistory');
@@ -1498,12 +1531,15 @@ function selectAdminChat(learnerId) {
   currentAdminChatUserId = learnerId;
   
   // Mark as read
+  let changed = false;
   messagesData.forEach(m => {
-    if (m.senderId === learnerId && m.receiverId === 'admin') {
+    if (m.senderId === learnerId && m.receiverId === 'admin' && !m.read) {
       m.read = true;
+      changed = true;
     }
   });
-  saveSystemData();
+  if (changed) saveSystemData();
+  updateUnreadBadges();
   
   const learner = usersData.find(u => u.id === learnerId);
   const headerEl = document.getElementById('admin-chat-header');
