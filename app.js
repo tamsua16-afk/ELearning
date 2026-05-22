@@ -103,6 +103,15 @@ let userProgress = {};
 let currentAdminCourse = null;
 
 let db;
+let initialState = {
+  usersData: [],
+  coursesData: [],
+  docsData: [],
+  pendingPromptsData: [],
+  userProgress: {},
+  inviteToken: null,
+  messagesData: []
+};
 
 function initFirebase() {
   if (!firebase.apps.length) {
@@ -131,23 +140,129 @@ async function fetchCloudData() {
       if (data.inviteToken !== undefined) inviteToken = data.inviteToken;
       if (data.messagesData) messagesData = data.messagesData;
     }
+    
+    // Keep a deep copy of initial state to detect local modifications
+    initialState = JSON.parse(JSON.stringify({
+      usersData: usersData || [],
+      coursesData: coursesData || [],
+      docsData: docsData || [],
+      pendingPromptsData: pendingPromptsData || [],
+      userProgress: userProgress || {},
+      inviteToken: inviteToken !== undefined ? inviteToken : null,
+      messagesData: messagesData || []
+    }));
   } catch(e) {
     console.error("Lỗi tải dữ liệu từ Firebase:", e);
   }
 }
 
-function saveSystemData() {
-  // Lưu lên Cloud
-  if (db) {
-    db.collection('ngocviet_app').doc('data_v1').set({
-      usersData,
-      coursesData,
-      docsData,
-      pendingPromptsData,
-      userProgress,
-      inviteToken,
-      messagesData
-    }).catch(e => console.error("Lỗi lưu dữ liệu lên Firebase:", e));
+function mergeArray(localArr, initialArr, remoteArr) {
+  if (!remoteArr) remoteArr = [];
+  if (!initialArr) initialArr = [];
+  if (!localArr) localArr = [];
+
+  // If no local changes, keep remote
+  if (JSON.stringify(localArr) === JSON.stringify(initialArr)) {
+    return remoteArr;
+  }
+
+  const localMap = new Map(localArr.map(item => [item.id, item]));
+  const initialMap = new Map(initialArr.map(item => [item.id, item]));
+  const remoteMap = new Map(remoteArr.map(item => [item.id, item]));
+
+  // 1. Additions and Updates
+  for (const [id, localItem] of localMap.entries()) {
+    const initialItem = initialMap.get(id);
+    if (!initialItem) {
+      // Added locally -> Add to remote
+      remoteMap.set(id, localItem);
+    } else if (JSON.stringify(localItem) !== JSON.stringify(initialItem)) {
+      // Modified locally -> Update remote
+      remoteMap.set(id, localItem);
+    }
+  }
+
+  // 2. Deletions
+  for (const id of initialMap.keys()) {
+    if (!localMap.has(id)) {
+      // Deleted locally -> Remove from remote
+      remoteMap.delete(id);
+    }
+  }
+
+  return Array.from(remoteMap.values());
+}
+
+function mergeProgress(localProg, initialProg, remoteProg) {
+  if (!remoteProg) remoteProg = {};
+  if (!initialProg) initialProg = {};
+  if (!localProg) localProg = {};
+
+  const merged = { ...remoteProg };
+
+  for (const userId in localProg) {
+    const localUserProg = localProg[userId];
+    const initialUserProg = initialProg[userId];
+    if (JSON.stringify(localUserProg) !== JSON.stringify(initialUserProg)) {
+      merged[userId] = localUserProg;
+    }
+  }
+
+  return merged;
+}
+
+async function saveSystemData() {
+  if (!db) return;
+  const docRef = db.collection('ngocviet_app').doc('data_v1');
+  try {
+    const nextData = await db.runTransaction(async (transaction) => {
+      const sfDoc = await transaction.get(docRef);
+      let remoteData = {};
+      if (sfDoc.exists) {
+        remoteData = sfDoc.data();
+      }
+
+      const mergedUsers = mergeArray(usersData, initialState.usersData, remoteData.usersData);
+      const mergedCourses = mergeArray(coursesData, initialState.coursesData, remoteData.coursesData);
+      const mergedDocs = mergeArray(docsData, initialState.docsData, remoteData.docsData);
+      const mergedPendingPrompts = mergeArray(pendingPromptsData, initialState.pendingPromptsData, remoteData.pendingPromptsData);
+      const mergedProgress = mergeProgress(userProgress, initialState.userProgress, remoteData.userProgress);
+      const mergedMessages = mergeArray(messagesData, initialState.messagesData, remoteData.messagesData);
+
+      let mergedInviteToken = remoteData.inviteToken;
+      if (inviteToken !== initialState.inviteToken) {
+        mergedInviteToken = inviteToken;
+      }
+
+      const updated = {
+        usersData: mergedUsers,
+        coursesData: mergedCourses,
+        docsData: mergedDocs,
+        pendingPromptsData: mergedPendingPrompts,
+        userProgress: mergedProgress,
+        inviteToken: mergedInviteToken !== undefined ? mergedInviteToken : null,
+        messagesData: mergedMessages
+      };
+
+      transaction.set(docRef, updated);
+      return updated;
+    });
+
+    // Sync local state to match the written database state
+    usersData = nextData.usersData;
+    coursesData = nextData.coursesData;
+    docsData = nextData.docsData;
+    pendingPromptsData = nextData.pendingPromptsData;
+    userProgress = nextData.userProgress;
+    inviteToken = nextData.inviteToken;
+    messagesData = nextData.messagesData;
+
+    // Update initialState snapshot
+    initialState = JSON.parse(JSON.stringify(nextData));
+    console.log("Đã đồng bộ và lưu dữ liệu lên Firebase.");
+  } catch (e) {
+    console.error("Lỗi lưu dữ liệu (Transaction) lên Firebase:", e);
+    showToast("⚠️ Có lỗi khi lưu dữ liệu lên hệ thống!");
   }
 }
 
