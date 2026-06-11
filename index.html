@@ -216,8 +216,14 @@
       <a class="nav-item" id="nav-courses" onclick="navigate('courses')">
         <span class="nav-icon">📚</span><span class="nav-label">Khóa học</span>
       </a>
+      <a class="nav-item" id="nav-prompts" onclick="navigate('prompts')">
+        <span class="nav-icon">💡</span><span class="nav-label">Thư viện Prompt</span>
+      </a>
       <a class="nav-item" id="nav-docs" onclick="navigate('docs')">
         <span class="nav-icon">📂</span><span class="nav-label">Tài liệu</span>
+      </a>
+      <a class="nav-item" id="nav-history" onclick="navigate('history')">
+        <span class="nav-icon">📊</span><span class="nav-label">Kết quả học tập</span>
       </a>
       <a class="nav-item" id="nav-messages" onclick="navigate('messages')" style="display:none;">
         <span class="nav-icon">💬</span><span class="nav-label">Tin nhắn</span>
@@ -247,11 +253,15 @@
       <button class="hamburger" onclick="toggleSidebar()">☰</button>
       <div class="topbar-title" id="topbar-title">Tổng quan</div>
       <div class="topbar-actions">
-        <div class="search-box">
+        <div class="streak-badge" id="topbar-streak" style="display:none;" title="Chuỗi ngày học tập liên tục">
+          🔥 <span id="topbar-streak-val">0</span> ngày
+        </div>
+        <div class="search-box" id="topbar-search-box">
           <span>🔍</span>
           <input type="text" placeholder="Tìm khóa học..." id="global-search" oninput="handleSearch()" />
         </div>
-        <div class="notification-bell" title="Thông báo">🔔</div>
+        <button class="theme-switch-btn" id="theme-toggle-btn" onclick="toggleTheme()" title="Chuyển chế độ sáng/tối">🌓</button>
+        <div class="notification-bell" id="topbar-notification" title="Thông báo">🔔</div>
       </div>
     </header>
 
@@ -292,6 +302,13 @@
                 <div class="stat-label">Tiến độ tổng thể</div>
               </div>
             </div>
+            <div class="stat-card orange" id="learner-streak-card" style="border-left-color: var(--orange);">
+              <div class="stat-icon">🔥</div>
+              <div class="stat-info">
+                <div class="stat-value" id="stat-streak-dashboard">0 ngày</div>
+                <div class="stat-label">Streak học tập</div>
+              </div>
+            </div>
           </div>
 
           <!-- Continue learning -->
@@ -309,6 +326,14 @@
               <a class="section-link" onclick="navigate('courses')">Xem tất cả →</a>
             </div>
             <div id="recommended-cards" class="course-grid"></div>
+          </div>
+
+          <!-- Learner Charts -->
+          <div class="section" id="learner-charts-section" style="margin-top:24px;">
+            <div class="chart-container" style="margin-top: 0;">
+              <h3 class="chart-title">📊 Tiến độ học tập theo khóa học</h3>
+              <div id="learner-progress-chart"></div>
+            </div>
           </div>
         </div>
 
@@ -342,6 +367,18 @@
                 <div class="stat-value" id="admin-stat-lessons">0</div>
                 <div class="stat-label">Tổng bài học</div>
               </div>
+            </div>
+          </div>
+
+          <!-- Admin Charts -->
+          <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 24px;" id="admin-charts-section">
+            <div style="flex: 1; min-width: 300px;" class="chart-container" style="margin-top: 0; margin-bottom: 0;">
+              <h3 class="chart-title">📊 Tỉ lệ học viên hoàn thành khóa học</h3>
+              <div id="admin-completion-chart"></div>
+            </div>
+            <div style="flex: 1; min-width: 300px;" class="chart-container" style="margin-top: 0; margin-bottom: 0;">
+              <h3 class="chart-title">👥 Phân bổ học viên theo vai trò/khối</h3>
+              <div id="admin-distribution-chart"></div>
             </div>
           </div>
 
@@ -415,6 +452,120 @@
           <button class="btn-primary" id="btn-create-doc" onclick="openModal('modal-add-doc')" style="display:none;">+ Thêm tài liệu</button>
         </div>
         <div id="docs-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;"></div>
+      </div>
+
+      <!-- ── PROMPTS PAGE ── -->
+      <div id="page-prompts" class="page">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">💡 Thư viện Prompt Thông minh</h2>
+            <p class="page-subtitle">Tra cứu và sao chép nhanh câu lệnh tối ưu cho Ngọc Việt Group</p>
+          </div>
+          <button class="btn-primary" id="btn-create-prompt-header" onclick="openPromptModal()" style="display:none;">+ Thêm Prompt</button>
+        </div>
+
+        <div class="prompt-controls">
+          <div class="prompt-search-box">
+            <span class="prompt-search-icon">🔍</span>
+            <input type="text" id="promptSearchInput" placeholder="Tìm kiếm prompt hoặc phòng ban..." oninput="handlePromptFilter()">
+          </div>
+          <div class="prompt-filter-box">
+            <select id="promptCategoryFilter" onchange="handlePromptFilter()">
+              <option value="all">Tất cả Khối/Phòng ban</option>
+            </select>
+          </div>
+          <div class="prompt-filter-box">
+            <select id="promptFormatFilter" onchange="handlePromptFilter()">
+              <option value="all">Tất cả định dạng</option>
+            </select>
+          </div>
+          <div class="prompt-view-toggle">
+            <button id="promptBtnGrid" onclick="setPromptView('grid')">🔲 Lưới</button>
+            <button id="promptBtnTable" class="active" onclick="setPromptView('table')">📋 Bảng</button>
+          </div>
+        </div>
+
+        <div id="promptViewContainer"></div>
+      </div>
+
+      <!-- ── HISTORY PAGE ── -->
+      <div id="page-history" class="page">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">📊 Kết quả & Lịch sử học tập</h2>
+            <p class="page-subtitle">Theo dõi chuỗi học tập (Streak) và điểm số bài thi trắc nghiệm</p>
+          </div>
+        </div>
+
+        <!-- LEARNER VIEW -->
+        <div id="history-learner-view">
+          <div class="stats-grid">
+            <div class="stat-card blue">
+              <div class="stat-icon">🔥</div>
+              <div class="stat-info">
+                <div class="stat-value" id="history-streak-val">0 ngày</div>
+                <div class="stat-label">Học liên tục (Streak)</div>
+              </div>
+            </div>
+            <div class="stat-card green">
+              <div class="stat-icon">📝</div>
+              <div class="stat-info">
+                <div class="stat-value" id="history-quiz-count">0</div>
+                <div class="stat-label">Bài kiểm tra đã làm</div>
+              </div>
+            </div>
+            <div class="stat-card purple">
+              <div class="stat-icon">🎯</div>
+              <div class="stat-info">
+                <div class="stat-value" id="history-quiz-avg">0%</div>
+                <div class="stat-label">Điểm số trung bình</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-header">
+              <h3 class="section-title">Lịch sử làm bài trắc nghiệm</h3>
+            </div>
+            <div class="table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Khóa học</th>
+                    <th>Bài học (Module)</th>
+                    <th>Điểm số</th>
+                    <th>Thời gian</th>
+                    <th>Trạng thái</th>
+                  </tr>
+                </thead>
+                <tbody id="history-learner-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ADMIN VIEW -->
+        <div id="history-admin-view" style="display:none;">
+          <div class="section">
+            <div class="section-header">
+              <h3 class="section-title">Bảng điểm thi trắc nghiệm của toàn bộ học viên</h3>
+            </div>
+            <div class="table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Học viên</th>
+                    <th>Email</th>
+                    <th>Khóa học / Bài học</th>
+                    <th>Điểm số</th>
+                    <th>Thời gian</th>
+                  </tr>
+                </thead>
+                <tbody id="history-admin-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- ── COURSE DETAIL PAGE ── -->
@@ -904,6 +1055,65 @@
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeModal('modal-invite-link')">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- Prompt View Modal -->
+<div class="modal-overlay" id="viewPromptModal" onclick="closeModalOutside(event, 'viewPromptModal')">
+  <div class="modal-box wide">
+    <div class="modal-header">
+      <h3 class="modal-title" id="vPromptTitle">Chi tiết Prompt</h3>
+      <button class="modal-close" onclick="closeModal('viewPromptModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="vPromptMeta" style="margin-bottom:12px; display:flex; gap:8px;"></div>
+      <div id="vPromptContent" style="background:var(--surface2); padding:16px; border-radius:var(--radius-sm); font-size:0.95rem; line-height:1.6; white-space:pre-wrap; max-height:350px; overflow-y:auto; border:1px solid var(--border); font-family:var(--font);"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" id="vPromptCopyBtn">📋 Sao chép Prompt</button>
+      <button class="btn-secondary" onclick="closeModal('viewPromptModal')">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Prompt Modal -->
+<div class="modal-overlay" id="promptModal" onclick="closeModalOutside(event, 'promptModal')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 class="modal-title" id="promptModalTitle">Thêm Prompt Mới</h3>
+      <button class="modal-close" onclick="closeModal('promptModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editPromptIndex" value="-1" />
+      <div class="form-group">
+        <label class="form-label">Khối/Phòng ban *</label>
+        <input class="form-input" type="text" id="pCategory" placeholder="VD: Khối Bất động sản">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nghiệp vụ *</label>
+        <input class="form-input" type="text" id="pGroup" placeholder="VD: Mạng xã hội">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Định dạng *</label>
+        <select class="form-input" id="pFormat">
+          <option value="Content">Content</option>
+          <option value="Hình ảnh">Hình ảnh</option>
+          <option value="Video">Video</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tên Prompt *</label>
+        <input class="form-input" type="text" id="pTitle" placeholder="Tên chức năng của prompt">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nội dung Prompt *</label>
+        <textarea class="form-input" id="pContent" rows="6" placeholder="Câu lệnh chi tiết..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('promptModal')">Hủy</button>
+      <button class="btn-primary" onclick="savePrompt()">Lưu lại</button>
     </div>
   </div>
 </div>

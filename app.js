@@ -95,6 +95,7 @@ let docsData = [
 ];
 
 let pendingPromptsData = [];
+let promptsData = [];
 
 // --- APP STATE ---
 let currentUser = null;
@@ -108,6 +109,7 @@ let initialState = {
   coursesData: [],
   docsData: [],
   pendingPromptsData: [],
+  promptsData: [],
   userProgress: {},
   inviteToken: null,
   messagesData: []
@@ -136,6 +138,7 @@ async function fetchCloudData() {
       if (data.coursesData) coursesData = data.coursesData;
       if (data.docsData) docsData = data.docsData;
       if (data.pendingPromptsData) pendingPromptsData = data.pendingPromptsData;
+      if (data.promptsData) promptsData = data.promptsData;
       if (data.userProgress) userProgress = data.userProgress;
       if (data.inviteToken !== undefined) inviteToken = data.inviteToken;
       if (data.messagesData) messagesData = data.messagesData;
@@ -147,6 +150,7 @@ async function fetchCloudData() {
       coursesData: coursesData || [],
       docsData: docsData || [],
       pendingPromptsData: pendingPromptsData || [],
+      promptsData: promptsData || [],
       userProgress: userProgress || {},
       inviteToken: inviteToken !== undefined ? inviteToken : null,
       messagesData: messagesData || []
@@ -215,6 +219,11 @@ async function saveSystemData() {
   if (!db) return;
   const docRef = db.collection('ngocviet_app').doc('data_v1');
   try {
+    // Prune messagesData local array to prevent Firestore document bloat (>1MB limit)
+    if (messagesData && messagesData.length > 200) {
+      messagesData = messagesData.slice(messagesData.length - 200);
+    }
+
     const nextData = await db.runTransaction(async (transaction) => {
       const sfDoc = await transaction.get(docRef);
       let remoteData = {};
@@ -226,7 +235,10 @@ async function saveSystemData() {
       const mergedCourses = mergeArray(coursesData, initialState.coursesData, remoteData.coursesData);
       const mergedDocs = mergeArray(docsData, initialState.docsData, remoteData.docsData);
       const mergedPendingPrompts = mergeArray(pendingPromptsData, initialState.pendingPromptsData, remoteData.pendingPromptsData);
+      const mergedPrompts = mergeArray(promptsData, initialState.promptsData, remoteData.promptsData);
       const mergedProgress = mergeProgress(userProgress, initialState.userProgress, remoteData.userProgress);
+      
+      // Merge pruned messagesData
       const mergedMessages = mergeArray(messagesData, initialState.messagesData, remoteData.messagesData);
 
       let mergedInviteToken = remoteData.inviteToken;
@@ -239,6 +251,7 @@ async function saveSystemData() {
         coursesData: mergedCourses,
         docsData: mergedDocs,
         pendingPromptsData: mergedPendingPrompts,
+        promptsData: mergedPrompts,
         userProgress: mergedProgress,
         inviteToken: mergedInviteToken !== undefined ? mergedInviteToken : null,
         messagesData: mergedMessages
@@ -253,6 +266,7 @@ async function saveSystemData() {
     coursesData = nextData.coursesData;
     docsData = nextData.docsData;
     pendingPromptsData = nextData.pendingPromptsData;
+    promptsData = nextData.promptsData;
     userProgress = nextData.userProgress;
     inviteToken = nextData.inviteToken;
     messagesData = nextData.messagesData;
@@ -407,15 +421,21 @@ function login(user) {
   
   const navMsg = document.getElementById('nav-messages');
   const chatW = document.getElementById('chatWidget');
+  const searchBox = document.getElementById('topbar-search-box');
+  const notificationBell = document.getElementById('topbar-notification');
   if (user.role === 'admin') {
     if (navMsg) navMsg.style.display = 'flex';
     if (chatW) chatW.style.display = 'none';
+    if (searchBox) searchBox.style.display = 'none';
+    if (notificationBell) notificationBell.style.display = 'none';
   } else {
     if (navMsg) navMsg.style.display = 'none';
     if (chatW) {
       chatW.style.display = 'block';
       renderLearnerChat();
     }
+    if (searchBox) searchBox.style.display = 'flex';
+    if (notificationBell) notificationBell.style.display = 'block';
   }
   
   updateUnreadBadges();
@@ -673,7 +693,9 @@ function navigate(pageId) {
   // Route logic
   if (pageId === 'dashboard') renderDashboard();
   if (pageId === 'courses') renderCourses();
+  if (pageId === 'prompts') renderIntegratedPrompts();
   if (pageId === 'docs') renderDocs();
+  if (pageId === 'history') renderHistory();
   if (pageId === 'admin') renderAdmin();
   if (pageId === 'messages') renderAdminMessages();
 }
@@ -734,6 +756,21 @@ function renderCourseCard(course) {
 function renderDashboard() {
   document.getElementById('welcome-msg').textContent = `Xin chào ${currentUser.name}! 👋`;
   
+  // Calculate streak for both admin & learner to display in topbar
+  const streak = calculateStreak(currentUser.id);
+  const topbarStreak = document.getElementById('topbar-streak');
+  const topbarStreakVal = document.getElementById('topbar-streak-val');
+  if (topbarStreak && topbarStreakVal) {
+    if (streak > 0) {
+      topbarStreak.style.display = 'inline-flex';
+      topbarStreakVal.textContent = streak;
+      topbarStreak.classList.add('active');
+    } else {
+      topbarStreak.style.display = 'none';
+      topbarStreak.classList.remove('active');
+    }
+  }
+
   if (currentUser.role === 'admin') {
     document.getElementById('dashboard-learner-view').style.display = 'none';
     document.getElementById('dashboard-admin-view').style.display = 'block';
@@ -755,7 +792,9 @@ function renderDashboard() {
     let systemCompletedLessons = 0;
     learners.forEach(u => {
       if (userProgress[u.id]) {
-        systemCompletedLessons += Object.keys(userProgress[u.id]).length;
+        // Exclude quizAttempts key if exists in userProgress count
+        const completedKeys = Object.keys(userProgress[u.id]).filter(k => k !== 'quizAttempts');
+        systemCompletedLessons += completedKeys.length;
       }
     });
     
@@ -764,18 +803,11 @@ function renderDashboard() {
     
     document.getElementById('admin-stat-rate').textContent = `${avgProgress}%`;
 
-    // Render pending prompts count
-    const pendingCount = pendingPromptsData.length;
-    const pendingBadge = document.getElementById('admin-pending-prompts-count');
-    if (pendingBadge) {
-      pendingBadge.textContent = pendingCount;
-      pendingBadge.style.display = pendingCount > 0 ? 'inline-block' : 'none';
-    }
-
     // Render users table
     let html = '';
     learners.forEach(u => {
-      let uCompleted = userProgress[u.id] ? Object.keys(userProgress[u.id]).length : 0;
+      const completedKeys = userProgress[u.id] ? Object.keys(userProgress[u.id]).filter(k => k !== 'quizAttempts') : [];
+      let uCompleted = completedKeys.length;
       let uProgress = totalLessons === 0 ? 0 : Math.round((uCompleted / totalLessons) * 100);
       
       html += `
@@ -799,6 +831,13 @@ function renderDashboard() {
       `;
     });
     document.getElementById('admin-users-tbody').innerHTML = html;
+
+    // Draw Admin SVG charts
+    setTimeout(() => {
+      drawAdminCompletionChart();
+      drawAdminDistributionChart();
+    }, 100);
+    
   } else {
     document.getElementById('dashboard-learner-view').style.display = 'block';
     document.getElementById('dashboard-admin-view').style.display = 'none';
@@ -810,7 +849,8 @@ function renderDashboard() {
     // Stats calc
     let totalCompleted = 0;
     if (userProgress[currentUser.id]) {
-      totalCompleted = Object.keys(userProgress[currentUser.id]).length;
+      const completedKeys = Object.keys(userProgress[currentUser.id]).filter(k => k !== 'quizAttempts');
+      totalCompleted = completedKeys.length;
     }
     
     let totalLessonsInSystem = 0;
@@ -819,12 +859,31 @@ function renderDashboard() {
     
     document.getElementById('stat-enrolled').textContent = courses.length;
     document.getElementById('stat-completed-lessons').textContent = totalCompleted;
-    if(document.getElementById('stat-streak')) document.getElementById('stat-streak').textContent = '0';
     document.getElementById('stat-overall-progress').textContent = overallProg + '%';
+    
+    // Streak Dashboard Card rendering
+    const streakCard = document.getElementById('learner-streak-card');
+    const streakValText = document.getElementById('stat-streak-dashboard');
+    if (streakCard && streakValText) {
+      if (streak > 0) {
+        streakCard.style.display = 'flex';
+        streakValText.textContent = streak + ' ngày';
+        streakCard.classList.add('active');
+      } else {
+        streakCard.style.display = 'flex'; // Always display but show 0 days
+        streakValText.textContent = '0 ngày';
+        streakCard.classList.remove('active');
+      }
+    }
     
     const cardsHtml = courses.map(c => renderCourseCard(c)).join('');
     document.getElementById('continue-cards').innerHTML = cardsHtml || '<div class="empty-state">Bạn chưa bắt đầu khóa học nào</div>';
     document.getElementById('recommended-cards').innerHTML = cardsHtml;
+
+    // Draw Learner SVG charts
+    setTimeout(() => {
+      drawLearnerProgressChart();
+    }, 100);
   }
 }
 
@@ -940,12 +999,20 @@ function loadModule(moduleId) {
   
   let actionBtnHtml = '';
   if (isDone) {
-    actionBtnHtml = `<button class="btn-success" disabled>✅ Đã hoàn thành</button>`;
+    actionBtnHtml = `<button class="btn-success" disabled style="margin: 0 10px;">✅ Đã hoàn thành</button>`;
   } else if (currentLesson.quiz && currentLesson.quiz.length > 0) {
-    actionBtnHtml = `<button class="btn-primary" onclick="startQuiz('${moduleId}')">📝 Làm bài kiểm tra</button>`;
+    actionBtnHtml = `<button class="btn-primary" onclick="startQuiz('${moduleId}')" style="margin: 0 10px;">📝 Làm bài kiểm tra</button>`;
   } else {
-    actionBtnHtml = `<button class="btn-success" onclick="markLessonComplete('${moduleId}')" id="btn-mark-done">Đánh dấu hoàn thành</button>`;
+    actionBtnHtml = `<button class="btn-success" onclick="markLessonComplete('${moduleId}')" id="btn-mark-done" style="margin: 0 10px;">Đánh dấu hoàn thành</button>`;
   }
+
+  // Calculate Next and Previous buttons
+  const mIndex = currentCourse.modules.findIndex(m => m.id === moduleId);
+  const prevModule = mIndex > 0 ? currentCourse.modules[mIndex - 1] : null;
+  const nextModule = mIndex < currentCourse.modules.length - 1 ? currentCourse.modules[mIndex + 1] : null;
+  
+  const prevBtnHtml = prevModule ? `<button class="btn-secondary" onclick="loadModule('${prevModule.id}')" style="font-size: .85rem; padding: 8px 16px;">← Bài trước</button>` : `<div></div>`;
+  const nextBtnHtml = nextModule ? `<button class="btn-primary" onclick="loadModule('${nextModule.id}')" style="font-size: .85rem; padding: 8px 16px;">Bài tiếp theo →</button>` : `<div></div>`;
   
   document.getElementById('lesson-player').innerHTML = `
     <div class="lesson-content-header">
@@ -955,21 +1022,29 @@ function loadModule(moduleId) {
     
     ${contentHtml}
     
-    <div class="lesson-actions">
+    <div class="lesson-actions" style="display:flex; justify-content:space-between; align-items:center; width:100%; margin-top:20px;">
+      ${prevBtnHtml}
       ${actionBtnHtml}
+      ${nextBtnHtml}
     </div>
   `;
 }
 
 function markLessonComplete(lessonId) {
   if (!userProgress[currentUser.id]) userProgress[currentUser.id] = {};
-  userProgress[currentUser.id][lessonId] = true;
+  // Save completion timestamp for learning streak calculation
+  userProgress[currentUser.id][lessonId] = Date.now();
   saveSystemData();
   
   // Update UI
-  document.getElementById('btn-mark-done').innerHTML = '✅ Đã hoàn thành';
-  document.querySelector(`#module-item-${lessonId} .lesson-check`).classList.add('done');
-  document.querySelector(`#module-item-${lessonId} .lesson-check`).textContent = '✓';
+  const btnMarkDone = document.getElementById('btn-mark-done');
+  if (btnMarkDone) btnMarkDone.innerHTML = '✅ Đã hoàn thành';
+  
+  const checkEl = document.querySelector(`#module-item-${lessonId} .lesson-check`);
+  if (checkEl) {
+    checkEl.classList.add('done');
+    checkEl.textContent = '✓';
+  }
   
   updateCourseDetailProgress();
   showToast('Đã lưu tiến độ!');
@@ -1516,9 +1591,11 @@ function submitQuiz() {
   if (ratio >= 0.8) { 
     alert(`🎉 Chúc mừng! Bạn đã đạt ${score}/${total} điểm và hoàn thành bài thi!`);
     closeModal('modal-do-quiz');
+    saveQuizAttempt(currentQuizModuleId, score, total);
     markLessonComplete(currentQuizModuleId);
   } else {
     alert(`⚠️ Bạn mới đạt ${score}/${total} điểm (Yêu cầu 80% để qua bài). Hãy xem lại bài giảng và làm lại nhé!`);
+    saveQuizAttempt(currentQuizModuleId, score, total);
   }
 }
 
@@ -1750,6 +1827,803 @@ window.onload = async () => {
   initFirebase();
   await fetchCloudData();
   
+  // Initialize dark/light mode
+  initTheme();
+
+  // Pre-load prompt library if possible
+  await loadIntegratedPrompts();
+
   overlay.remove();
   init();
 };
+
+/* ════════════════════════════════════════════════════
+   ADDITIONAL LOGIC: THEME, STREAK, QUIZ HISTORY, SVG CHARTS & PROMPTS
+════════════════════════════════════════════════════ */
+
+// --- THEME MANAGEMENT ---
+function initTheme() {
+  const savedTheme = localStorage.getItem('nv_theme') || 'light';
+  if (savedTheme === 'dark') {
+    document.body.classList.add('dark-mode');
+    const btn = document.getElementById('theme-toggle-btn');
+    if (btn) btn.textContent = '☀️';
+  } else {
+    document.body.classList.remove('dark-mode');
+    const btn = document.getElementById('theme-toggle-btn');
+    if (btn) btn.textContent = '🌙';
+  }
+}
+
+function toggleTheme() {
+  const isDark = document.body.classList.toggle('dark-mode');
+  localStorage.setItem('nv_theme', isDark ? 'dark' : 'light');
+  const btn = document.getElementById('theme-toggle-btn');
+  if (btn) btn.textContent = isDark ? '☀️' : '🌙';
+  
+  // Re-draw charts to fit current theme text colors
+  if (currentUser) {
+    if (currentUser.role === 'admin') {
+      drawAdminCompletionChart();
+      drawAdminDistributionChart();
+    } else {
+      drawLearnerProgressChart();
+    }
+  }
+  showToast(isDark ? '🌙 Đã chuyển sang chế độ tối!' : '☀️ Đã chuyển sang chế độ sáng!');
+}
+
+// --- CALC STREAK DAYS ---
+function calculateStreak(userId) {
+  if (!userProgress || !userProgress[userId]) return 0;
+  
+  const completions = userProgress[userId];
+  const dates = new Set();
+  
+  // Extract simple lesson completions timestamps
+  for (const key in completions) {
+    if (key === 'quizAttempts') continue;
+    const val = completions[key];
+    if (typeof val === 'number') {
+      const d = new Date(val);
+      const dateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      dates.add(dateStr);
+    }
+  }
+  
+  // Extract quiz completion timestamps
+  if (completions.quizAttempts && Array.isArray(completions.quizAttempts)) {
+    completions.quizAttempts.forEach(attempt => {
+      if (attempt.timestamp) {
+        const d = new Date(attempt.timestamp);
+        const dateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        dates.add(dateStr);
+      }
+    });
+  }
+
+  if (dates.size === 0) return 0;
+
+  // Sort dates descending
+  const sortedDates = Array.from(dates).sort((a, b) => new Date(b) - new Date(a));
+  
+  const today = new Date();
+  const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+  
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.getFullYear() + '-' + String(yesterday.getMonth() + 1).padStart(2, '0') + '-' + String(yesterday.getDate()).padStart(2, '0');
+
+  // Verify if streak is broken
+  if (sortedDates[0] !== todayStr && sortedDates[0] !== yesterdayStr) {
+    return 0;
+  }
+
+  let streak = 1;
+  let currentDate = new Date(sortedDates[0]);
+
+  for (let i = 1; i < sortedDates.length; i++) {
+    const prevDate = new Date(sortedDates[i]);
+    const diffTime = Math.abs(currentDate - prevDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) {
+      streak++;
+      currentDate = prevDate;
+    } else if (diffDays > 1) {
+      break;
+    }
+  }
+  return streak;
+}
+
+// --- QUIZ HISTORY SAVING ---
+function saveQuizAttempt(moduleId, score, total) {
+  if (!currentUser) return;
+  if (!userProgress[currentUser.id]) userProgress[currentUser.id] = {};
+  if (!userProgress[currentUser.id].quizAttempts) {
+    userProgress[currentUser.id].quizAttempts = [];
+  }
+  
+  userProgress[currentUser.id].quizAttempts.push({
+    moduleId: moduleId,
+    score: score,
+    total: total,
+    timestamp: Date.now()
+  });
+  saveSystemData();
+}
+
+// --- DYNAMIC SVG CHARTS (NATIVE, STYLISH & ADAPTIVE) ---
+function drawLearnerProgressChart() {
+  const container = document.getElementById('learner-progress-chart');
+  if (!container) return;
+  
+  const courses = getVisibleCourses();
+  if (courses.length === 0) {
+    container.innerHTML = '<p class="empty-state">Chưa đăng ký khóa học nào.</p>';
+    return;
+  }
+  
+  let svg = `<svg viewBox="0 0 500 ${courses.length * 60 + 40}" class="svg-chart" width="100%">`;
+  
+  // Draw grid lines
+  for (let pct = 0; pct <= 100; pct += 25) {
+    const x = 160 + (pct / 100) * 300;
+    svg += `<line x1="${x}" y1="10" x2="${x}" y2="${courses.length * 60 + 10}" class="chart-grid-line" stroke="var(--border)" stroke-dasharray="4,4" />`;
+    svg += `<text x="${x}" y="${courses.length * 60 + 25}" class="chart-text" text-anchor="middle" fill="var(--text-muted)">${pct}%</text>`;
+  }
+  
+  courses.forEach((c, idx) => {
+    const progress = getCourseProgress(c.id);
+    const y = idx * 60 + 20;
+    const barWidth = Math.max(8, (progress / 100) * 300);
+    
+    // Shorten title for label
+    const shortTitle = c.title.length > 18 ? c.title.substring(0, 16) + '...' : c.title;
+    
+    svg += `<text x="10" y="${y + 14}" class="chart-text" style="font-weight:600;" fill="var(--text)" title="${c.title}">${shortTitle}</text>`;
+    svg += `<rect x="160" y="${y}" width="300" height="20" rx="10" fill="var(--surface2)" />`;
+    svg += `<rect x="160" y="${y}" width="${barWidth}" height="20" rx="10" fill="url(#learnerGrad)" class="chart-bar" />`;
+    svg += `<text x="${160 + barWidth + 8}" y="${y + 14}" class="chart-text" style="font-weight:bold;" fill="var(--text)">${progress}%</text>`;
+  });
+  
+  svg += `<defs>
+    <linearGradient id="learnerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4285F4" />
+      <stop offset="100%" stop-color="#2563EB" />
+    </linearGradient>
+  </defs></svg>`;
+  
+  container.innerHTML = svg;
+}
+
+function drawAdminCompletionChart() {
+  const container = document.getElementById('admin-completion-chart');
+  if (!container) return;
+  
+  const learners = usersData.filter(u => u.role === 'learner');
+  if (learners.length === 0 || coursesData.length === 0) {
+    container.innerHTML = '<p class="empty-state">Chưa có dữ liệu bài học.</p>';
+    return;
+  }
+  
+  let svg = `<svg viewBox="0 0 500 ${coursesData.length * 60 + 40}" class="svg-chart" width="100%">`;
+  
+  // Draw grid
+  for (let pct = 0; pct <= 100; pct += 25) {
+    const x = 160 + (pct / 100) * 300;
+    svg += `<line x1="${x}" y1="10" x2="${x}" y2="${coursesData.length * 60 + 10}" class="chart-grid-line" stroke="var(--border)" stroke-dasharray="4,4" />`;
+    svg += `<text x="${x}" y="${coursesData.length * 60 + 25}" class="chart-text" text-anchor="middle" fill="var(--text-muted)">${pct}%</text>`;
+  }
+  
+  coursesData.forEach((c, idx) => {
+    let totalProgress = 0;
+    learners.forEach(u => {
+      let uCompleted = 0;
+      c.modules.forEach(m => {
+        if (userProgress[u.id] && userProgress[u.id][m.id]) uCompleted++;
+      });
+      const cProg = c.modules.length === 0 ? 0 : (uCompleted / c.modules.length) * 100;
+      totalProgress += cProg;
+    });
+    
+    const avgProgress = Math.round(totalProgress / learners.length);
+    const y = idx * 60 + 20;
+    const barWidth = Math.max(8, (avgProgress / 100) * 300);
+    const shortTitle = c.title.length > 18 ? c.title.substring(0, 16) + '...' : c.title;
+    
+    svg += `<text x="10" y="${y + 14}" class="chart-text" style="font-weight:600;" fill="var(--text)" title="${c.title}">${shortTitle}</text>`;
+    svg += `<rect x="160" y="${y}" width="300" height="20" rx="10" fill="var(--surface2)" />`;
+    svg += `<rect x="160" y="${y}" width="${barWidth}" height="20" rx="10" fill="url(#adminGrad)" class="chart-bar" />`;
+    svg += `<text x="${160 + barWidth + 8}" y="${y + 14}" class="chart-text" style="font-weight:bold;" fill="var(--text)">${avgProgress}%</text>`;
+  });
+  
+  svg += `<defs>
+    <linearGradient id="adminGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#34A853" />
+      <stop offset="100%" stop-color="#10B981" />
+    </linearGradient>
+  </defs></svg>`;
+  
+  container.innerHTML = svg;
+}
+
+function drawAdminDistributionChart() {
+  const container = document.getElementById('admin-distribution-chart');
+  if (!container) return;
+  
+  const learners = usersData.filter(u => u.role === 'learner');
+  if (learners.length === 0) {
+    container.innerHTML = '<p class="empty-state">Chưa có học viên.</p>';
+    return;
+  }
+  
+  // Categorize based on email domain or name keywords
+  let counts = { 'Khối BĐS': 0, 'Khối Năng lượng': 0, 'Khối Giáo dục': 0, 'Khối Nông nghiệp': 0, 'Khác': 0 };
+  learners.forEach(u => {
+    const email = u.email.toLowerCase();
+    const name = u.name.toLowerCase();
+    
+    if (email.includes('bds') || email.includes('land') || name.includes('bất động sản') || name.includes('bđs')) {
+      counts['Khối BĐS']++;
+    } else if (email.includes('power') || email.includes('nlx') || email.includes('energy') || name.includes('năng lượng')) {
+      counts['Khối Năng lượng']++;
+    } else if (email.includes('edu') || email.includes('school') || email.includes('edison') || name.includes('giáo dục')) {
+      counts['Khối Giáo dục']++;
+    } else if (email.includes('agri') || email.includes('farm') || name.includes('nông nghiệp')) {
+      counts['Khối Nông nghiệp']++;
+    } else {
+      counts['Khác']++;
+    }
+  });
+  
+  const data = Object.keys(counts).map(key => ({ name: key, value: counts[key] })).filter(item => item.value > 0);
+  if (data.length === 0) {
+    container.innerHTML = '<p class="empty-state">Chưa phân lớp học viên.</p>';
+    return;
+  }
+  
+  const colors = ['#4285F4', '#34A853', '#9333EA', '#F97316', '#5F6368'];
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+  
+  let svg = `<svg viewBox="0 0 400 200" class="svg-chart" width="100%">`;
+  let cumulativeAngle = 0;
+  const cx = 100, cy = 100, r = 70;
+  
+  data.forEach((item, idx) => {
+    const percent = item.value / total;
+    const angle = percent * 360;
+    
+    const x1 = cx + r * Math.cos((cumulativeAngle - 90) * Math.PI / 180);
+    const y1 = cy + r * Math.sin((cumulativeAngle - 90) * Math.PI / 180);
+    
+    cumulativeAngle += angle;
+    
+    const x2 = cx + r * Math.cos((cumulativeAngle - 90) * Math.PI / 180);
+    const y2 = cy + r * Math.sin((cumulativeAngle - 90) * Math.PI / 180);
+    
+    const largeArcFlag = angle > 180 ? 1 : 0;
+    
+    // Draw slice path
+    svg += `<path d="M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArcFlag} 1 ${x2} ${y2} Z" fill="${colors[idx % colors.length]}" stroke="var(--surface)" stroke-width="2" />`;
+    
+    // Draw legend text and colored boxes
+    svg += `<rect x="220" y="${idx * 30 + 30}" width="12" height="12" rx="3" fill="${colors[idx % colors.length]}" />`;
+    svg += `<text x="240" y="${idx * 30 + 41}" class="chart-text" fill="var(--text)" style="font-weight: 500;">${item.name}: ${item.value} (${Math.round(percent * 100)}%)</text>`;
+  });
+  
+  // Draw center hole to make it a donut chart
+  svg += `<circle cx="${cx}" cy="${cy}" r="42" fill="var(--surface)" />`;
+  svg += `<text x="${cx}" y="${cy + 5}" text-anchor="middle" class="chart-text" style="font-weight:bold; font-size:14px;" fill="var(--text)">${total}</text>`;
+  svg += `</svg>`;
+  
+  container.innerHTML = svg;
+}
+
+// --- INTEGRATED PROMPTS LIBRARY LOGIC ---
+let currentPromptView = 'table';
+
+async function loadIntegratedPrompts() {
+  // First priority: read prompts already stored in Firebase Cloud promptsData
+  if (promptsData && promptsData.length > 0) {
+    populatePromptFilters();
+    return;
+  }
+  
+  // Second priority: read from localStorage
+  const savedPrompts = localStorage.getItem('nv_learn_prompts_v1');
+  if (savedPrompts) {
+    promptsData = JSON.parse(savedPrompts);
+    populatePromptFilters();
+    return;
+  }
+  
+  // Third priority: Fetch from local repository "Prompt" file
+  try {
+    const response = await fetch('Prompt');
+    if (response.ok) {
+      const text = await response.text();
+      parsePromptsText(text);
+      saveSystemData(); // Sync up to Firestore
+    }
+  } catch (error) {
+    console.warn("Offline or CORS issue: prompt uploader will be fallback option.", error);
+  }
+}
+
+function parsePromptsText(text) {
+  promptsData = [];
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
+  let currentCategory = '';
+  let i = 0;
+
+  while (i < lines.length) {
+    if (lines[i].match(/^\d+\.\s+KHỐI/)) {
+      currentCategory = lines[i].replace(/^\d+\.\s+/, '').replace(/\s+\(\d+\s+Prompt\)/i, '').trim();
+      i++;
+      while (i < lines.length && !lines[i].match(/^\d+$/)) {
+        i++;
+      }
+    } else if (lines[i].match(/^\d+$/)) {
+      let stt = lines[i++];
+      let group = lines[i++] || '';
+      let title = lines[i++] || '';
+      
+      let content = '';
+      while (i < lines.length && !['Content', 'Hình ảnh', 'Video'].includes(lines[i])) {
+        content += lines[i] + '\n';
+        i++;
+      }
+      let format = lines[i++] || 'Content';
+
+      if (title && content) {
+        promptsData.push({
+          id: 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+          category: currentCategory,
+          stt: stt,
+          group: group,
+          title: title,
+          content: content.trim(),
+          format: format
+        });
+      }
+    } else {
+      i++;
+    }
+  }
+
+  populatePromptFilters();
+  localStorage.setItem('nv_learn_prompts_v1', JSON.stringify(promptsData));
+}
+
+function handlePromptUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    parsePromptsText(e.target.result);
+    saveSystemData();
+    renderIntegratedPrompts();
+    showToast('✨ Đã nạp thành công ' + promptsData.length + ' prompts!');
+  };
+  reader.readAsText(file);
+}
+
+function populatePromptFilters() {
+  const categories = [...new Set(promptsData.map(p => p.category))];
+  const formats = [...new Set(promptsData.map(p => p.format))];
+
+  const catSelect = document.getElementById('promptCategoryFilter');
+  if (catSelect) {
+    // Reset options
+    catSelect.innerHTML = '<option value="all">Tất cả Khối/Phòng ban</option>';
+    categories.forEach(c => {
+      let opt = document.createElement('option');
+      opt.value = c; opt.textContent = c;
+      catSelect.appendChild(opt);
+    });
+  }
+
+  const formatSelect = document.getElementById('promptFormatFilter');
+  if (formatSelect) {
+    formatSelect.innerHTML = '<option value="all">Tất cả định dạng</option>';
+    formats.forEach(f => {
+      let opt = document.createElement('option');
+      opt.value = f; opt.textContent = f;
+      formatSelect.appendChild(opt);
+    });
+  }
+}
+
+function renderIntegratedPrompts(data = null) {
+  const container = document.getElementById('promptViewContainer');
+  if (!container) return;
+  
+  // Show file uploader fallback if no prompts exist
+  if (promptsData.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state" style="max-width: 500px; margin: 40px auto; border: 2px dashed var(--border); border-radius: var(--radius); padding: 40px 20px;">
+        <div class="empty-icon" style="font-size: 3rem; margin-bottom: 12px;">⚠️</div>
+        <h3 style="margin-bottom: 8px;">Không thể tải dữ liệu Prompt tự động</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">
+          Do chạy offline (file://) hoặc chưa có dữ liệu đồng bộ đám mây. Vui lòng chọn file <strong>Prompt</strong> trong thư mục dự án:
+        </p>
+        <input type="file" id="integratedPromptFileInput" style="font-size: 0.9rem;" onchange="handlePromptUpload(event)">
+      </div>
+    `;
+    return;
+  }
+
+  const renderData = data || promptsData;
+  
+  // Show header add button if admin
+  const addBtn = document.getElementById('btn-create-prompt-header');
+  if (addBtn) addBtn.style.display = currentUser.role === 'admin' ? 'block' : 'none';
+
+  if (renderData.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><p>Không tìm thấy kết quả phù hợp.</p></div>';
+    return;
+  }
+
+  if (currentPromptView === 'grid') {
+    let html = '<div class="prompts-grid-container">';
+    renderData.forEach(p => {
+      const idx = promptsData.findIndex(item => item.id === p.id);
+      
+      const adminActions = currentUser.role === 'admin' ? `
+        <button class="btn-sm" onclick="openPromptModal(${idx})" style="padding: 6px; flex: 1;">✏️ Sửa</button>
+        <button class="btn-sm danger" onclick="deletePrompt(${idx})" style="padding: 6px; flex: 1;">🗑️ Xóa</button>
+      ` : '';
+
+      html += `
+        <div class="prompt-custom-card" onclick="viewPromptDetails(${idx})">
+          <div class="prompt-card-header">
+            <span class="tag-format">${p.format}</span>
+          </div>
+          <h3 class="prompt-card-title">${p.title}</h3>
+          <div class="prompt-card-tags">
+            <span class="tag-category">${p.category}</span>
+            <span class="tag-group">${p.group}</span>
+          </div>
+          <div class="prompt-card-content" id="prompt-content-${idx}">${p.content}</div>
+          <div style="display:flex; gap:8px; margin-top: auto;" onclick="event.stopPropagation()">
+            <button class="btn-primary" onclick="copyPromptToClipboard(${idx}, this)" style="flex: 2;">📋 Copy</button>
+            ${adminActions}
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  } else {
+    let html = `
+      <div class="table-wrapper" style="max-height: 600px;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 25%">Bộ phận / Nghiệp vụ</th>
+              <th style="width: 25%">Tên Prompt</th>
+              <th style="width: 35%">Nội dung (Xem trước)</th>
+              <th style="width: 15%">Hành động</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    renderData.forEach(p => {
+      const idx = promptsData.findIndex(item => item.id === p.id);
+      
+      const adminActions = currentUser.role === 'admin' ? `
+        <button class="btn-sm" onclick="openPromptModal(${idx})" style="padding: 6px; width:auto;">✏️</button>
+        <button class="btn-sm danger" onclick="deletePrompt(${idx})" style="padding: 6px; width:auto;">🗑️</button>
+      ` : '';
+
+      html += `
+        <tr onclick="viewPromptDetails(${idx})" style="cursor:pointer">
+          <td>
+            <div style="font-weight: 700; font-size: 0.85rem; color: var(--primary-dark);">${p.category}</div>
+            <div style="display:flex; gap:6px; margin-top: 4px;">
+              <span class="tag-group" style="font-size:0.7rem; padding: 2px 6px;">${p.group}</span>
+              <span class="tag-format" style="font-size:0.7rem; padding: 2px 6px;">${p.format}</span>
+            </div>
+          </td>
+          <td style="font-weight: 600;">${p.title}</td>
+          <td>
+            <div class="prompt-card-content" id="prompt-content-${idx}" style="max-height: 80px; margin-bottom:0; background:none; padding:0; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical;">${p.content}</div>
+          </td>
+          <td onclick="event.stopPropagation()">
+            <div style="display:flex; gap:6px;">
+              <button class="btn-primary" onclick="copyPromptToClipboard(${idx}, this)" style="padding: 6px 12px; font-size: 0.82rem; flex:1;">Copy</button>
+              ${adminActions}
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+  }
+}
+
+function handlePromptFilter() {
+  const search = document.getElementById('promptSearchInput').value.toLowerCase();
+  const cat = document.getElementById('promptCategoryFilter').value;
+  const format = document.getElementById('promptFormatFilter').value;
+
+  const filtered = promptsData.filter(p => {
+    const matchSearch = p.title.toLowerCase().includes(search) || p.content.toLowerCase().includes(search) || p.group.toLowerCase().includes(search);
+    const matchCat = cat === 'all' || p.category === cat;
+    const matchFormat = format === 'all' || p.format === format;
+    return matchSearch && matchCat && matchFormat;
+  });
+
+  renderIntegratedPrompts(filtered);
+}
+
+function setPromptView(view) {
+  currentPromptView = view;
+  const gridBtn = document.getElementById('promptBtnGrid');
+  const tableBtn = document.getElementById('promptBtnTable');
+  if (gridBtn && tableBtn) {
+    gridBtn.classList.toggle('active', view === 'grid');
+    tableBtn.classList.toggle('active', view === 'table');
+  }
+  handlePromptFilter();
+}
+
+function copyPromptToClipboard(idx, btn) {
+  const text = document.getElementById(`prompt-content-${idx}`).innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '✅ Đã Copy!';
+    btn.classList.add('btn-success');
+    btn.classList.remove('btn-primary');
+    setTimeout(() => {
+      btn.innerHTML = originalText;
+      btn.classList.add('btn-primary');
+      btn.classList.remove('btn-success');
+    }, 2000);
+  });
+}
+
+function openPromptModal(idx = -1) {
+  openModal('promptModal');
+  const indexEl = document.getElementById('editPromptIndex');
+  const titleEl = document.getElementById('promptModalTitle');
+  const catEl = document.getElementById('pCategory');
+  const grpEl = document.getElementById('pGroup');
+  const titleInput = document.getElementById('pTitle');
+  const contentEl = document.getElementById('pContent');
+  const formatEl = document.getElementById('pFormat');
+
+  if (idx > -1) {
+    titleEl.textContent = 'Chỉnh sửa Prompt';
+    indexEl.value = idx;
+    const p = promptsData[idx];
+    catEl.value = p.category;
+    grpEl.value = p.group;
+    titleInput.value = p.title;
+    contentEl.value = p.content;
+    formatEl.value = p.format;
+  } else {
+    titleEl.textContent = 'Thêm Prompt Mới';
+    indexEl.value = -1;
+    catEl.value = '';
+    grpEl.value = '';
+    titleInput.value = '';
+    contentEl.value = '';
+    formatEl.value = 'Content';
+  }
+}
+
+// Handler for Add button in Integrated view header
+function openPromptModalEmpty() {
+  openPromptModal(-1);
+}
+
+function savePrompt() {
+  const idx = parseInt(document.getElementById('editPromptIndex').value);
+  const category = document.getElementById('pCategory').value.trim() || 'Chung';
+  const group = document.getElementById('pGroup').value.trim() || 'Nghiệp vụ';
+  const title = document.getElementById('pTitle').value.trim();
+  const content = document.getElementById('pContent').value.trim();
+  const format = document.getElementById('pFormat').value;
+
+  if (!title || !content) return alert('Vui lòng nhập Tên và Nội dung!');
+
+  if (idx > -1) {
+    promptsData[idx] = { ...promptsData[idx], category, group, title, content, format };
+    showToast('✅ Đã cập nhật Prompt!');
+  } else {
+    const stt = promptsData.length > 0 ? String(promptsData.length + 1) : '1';
+    promptsData.push({
+      id: 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      stt, category, group, title, content, format
+    });
+    showToast('✅ Đã tạo Prompt mới thành công!');
+  }
+  
+  saveSystemData();
+  localStorage.setItem('nv_learn_prompts_v1', JSON.stringify(promptsData));
+  closeModal('promptModal');
+  renderIntegratedPrompts();
+}
+
+function deletePrompt(idx) {
+  if (confirm('Bạn có chắc muốn xóa prompt này?')) {
+    promptsData.splice(idx, 1);
+    saveSystemData();
+    localStorage.setItem('nv_learn_prompts_v1', JSON.stringify(promptsData));
+    renderIntegratedPrompts();
+    showToast('🗑️ Đã xóa prompt!');
+  }
+}
+
+function viewPromptDetails(idx) {
+  const p = promptsData[idx];
+  document.getElementById('vPromptTitle').textContent = p.title;
+  document.getElementById('vPromptMeta').innerHTML = `
+    <span class="tag-category">${p.category}</span>
+    <span class="tag-group">${p.group}</span>
+    <span class="tag-format">${p.format}</span>
+  `;
+  document.getElementById('vPromptContent').textContent = p.content;
+  document.getElementById('vPromptCopyBtn').onclick = function() {
+    copyPromptToClipboard(idx, this);
+  };
+  openModal('viewPromptModal');
+}
+
+// --- RESULTS & HISTORY RENDERING ---
+function renderHistory() {
+  const learnerView = document.getElementById('history-learner-view');
+  const adminView = document.getElementById('history-admin-view');
+  
+  if (currentUser.role === 'admin') {
+    learnerView.style.display = 'none';
+    adminView.style.display = 'block';
+    
+    // Render Admin full user scores list
+    let html = '';
+    const learners = usersData.filter(u => u.role === 'learner');
+    let count = 0;
+    
+    learners.forEach(user => {
+      if (userProgress[user.id] && userProgress[user.id].quizAttempts) {
+        userProgress[user.id].quizAttempts.forEach(attempt => {
+          // Find course & lesson titles
+          let lessonTitle = attempt.moduleId;
+          let courseTitle = 'Khóa học';
+          
+          coursesData.forEach(c => {
+            const m = c.modules.find(mod => mod.id === attempt.moduleId);
+            if (m) {
+              lessonTitle = m.title;
+              courseTitle = c.title.split(':')[0] || c.title;
+            }
+          });
+          
+          const dt = new Date(attempt.timestamp).toLocaleString();
+          const scorePercent = Math.round((attempt.score / attempt.total) * 100);
+          const isPassed = scorePercent >= 80;
+          
+          html += `
+            <tr>
+              <td><strong>${user.name}</strong></td>
+              <td>${user.email}</td>
+              <td>
+                <div style="font-size:0.75rem; color:var(--text-muted);">${courseTitle}</div>
+                <div style="font-weight:600;">${lessonTitle}</div>
+              </td>
+              <td>
+                <span class="score-badge ${isPassed ? 'pass' : 'fail'}">${attempt.score}/${attempt.total} (${scorePercent}%)</span>
+              </td>
+              <td style="font-size:0.85rem; color:var(--text-muted);">${dt}</td>
+            </tr>
+          `;
+          count++;
+        });
+      }
+    });
+    
+    document.getElementById('history-admin-tbody').innerHTML = html || `<tr><td colspan="5" class="empty-state">Chưa có bài làm trắc nghiệm nào trong hệ thống.</td></tr>`;
+  } else {
+    learnerView.style.display = 'block';
+    adminView.style.display = 'none';
+    
+    // Streak days
+    const streak = calculateStreak(currentUser.id);
+    document.getElementById('history-streak-val').textContent = streak + ' ngày';
+    
+    // Quiz list for this learner
+    let html = '';
+    let quizCount = 0;
+    let totalScorePercent = 0;
+    
+    if (userProgress[currentUser.id] && userProgress[currentUser.id].quizAttempts) {
+      const attempts = userProgress[currentUser.id].quizAttempts;
+      attempts.forEach(attempt => {
+        let lessonTitle = attempt.moduleId;
+        let courseTitle = 'Khóa học';
+        
+        coursesData.forEach(c => {
+          const m = c.modules.find(mod => mod.id === attempt.moduleId);
+          if (m) {
+            lessonTitle = m.title;
+            courseTitle = c.title.split(':')[0] || c.title;
+          }
+        });
+        
+        const dt = new Date(attempt.timestamp).toLocaleString();
+        const scorePercent = Math.round((attempt.score / attempt.total) * 100);
+        const isPassed = scorePercent >= 80;
+        
+        totalScorePercent += scorePercent;
+        quizCount++;
+        
+        html += `
+          <tr>
+            <td><span style="font-size:0.78rem; color:var(--text-muted);">${courseTitle}</span></td>
+            <td><strong>${lessonTitle}</strong></td>
+            <td>
+              <span class="score-badge ${isPassed ? 'pass' : 'fail'}">${attempt.score}/${attempt.total} (${scorePercent}%)</span>
+            </td>
+            <td style="font-size:0.85rem; color:var(--text-muted);">${dt}</td>
+            <td><strong>${isPassed ? '✅ Đạt' : '❌ Chưa Đạt'}</strong></td>
+          </tr>
+        `;
+      });
+    }
+    
+    document.getElementById('history-quiz-count').textContent = quizCount;
+    const avg = quizCount === 0 ? 0 : Math.round(totalScorePercent / quizCount);
+    document.getElementById('history-quiz-avg').textContent = avg + '%';
+    
+    document.getElementById('history-learner-tbody').innerHTML = html || `<tr><td colspan="5" class="empty-state">Bạn chưa hoàn thành bài thi trắc nghiệm nào.</td></tr>`;
+  }
+}
+
+// --- APP STARTUP ---
+// Khởi động Firebase, tải dữ liệu từ cloud, rồi mới chạy init()
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    // Hiện màn hình loading
+    const loadingEl = document.createElement('div');
+    loadingEl.id = 'app-loading-screen';
+    loadingEl.style.cssText = `
+      position: fixed; inset: 0; z-index: 9999;
+      background: var(--bg, #0f172a);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px;
+    `;
+    loadingEl.innerHTML = `
+      <svg width="48" height="48" viewBox="0 0 36 36" fill="none">
+        <rect width="36" height="36" rx="10" fill="#4285F4"/>
+        <path d="M10 24 L18 10 L26 24" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <path d="M13 20 L23 20" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      <div style="color:#94a3b8; font-family:Inter,sans-serif; font-size:0.9rem;">Đang kết nối hệ thống...</div>
+      <div style="width:200px;height:3px;background:#1e293b;border-radius:2px;overflow:hidden;">
+        <div id="loading-bar" style="height:100%;width:30%;background:#4285F4;border-radius:2px;animation:loadSlide 1.2s ease-in-out infinite;"></div>
+      </div>
+      <style>@keyframes loadSlide{0%{width:10%;margin-left:0}50%{width:60%;margin-left:20%}100%{width:10%;margin-left:90%}}</style>
+    `;
+    document.body.appendChild(loadingEl);
+
+    // Bước 1: Khởi động Firebase SDK
+    initFirebase();
+
+    // Bước 2: Tải dữ liệu từ Firestore
+    await fetchCloudData();
+
+  } catch (e) {
+    console.error('Lỗi khởi động Firebase:', e);
+    // Nếu lỗi kết nối, vẫn chạy app với dữ liệu trống/mock
+  } finally {
+    // Bước 3: Xóa màn hình loading và chạy app
+    const loadingEl = document.getElementById('app-loading-screen');
+    if (loadingEl) loadingEl.remove();
+    init();
+  }
+});
