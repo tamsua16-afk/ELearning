@@ -130,10 +130,13 @@ function initFirebase() {
 }
 
 async function fetchCloudData() {
+  console.log('[NV Learn] Đang tải dữ liệu từ Firestore...');
   try {
     const doc = await db.collection('ngocviet_app').doc('data_v1').get();
+    console.log('[NV Learn] Kết quả Firestore - doc.exists:', doc.exists);
     if (doc.exists) {
       const data = doc.data();
+      console.log('[NV Learn] Số users trong DB:', data.usersData ? data.usersData.length : 0);
       if (data.usersData) usersData = data.usersData;
       if (data.coursesData) coursesData = data.coursesData;
       if (data.docsData) docsData = data.docsData;
@@ -142,6 +145,8 @@ async function fetchCloudData() {
       if (data.userProgress) userProgress = data.userProgress;
       if (data.inviteToken !== undefined) inviteToken = data.inviteToken;
       if (data.messagesData) messagesData = data.messagesData;
+    } else {
+      console.warn('[NV Learn] Document data_v1 KHÔNG TỒN TẠI trong Firestore!');
     }
     
     // Keep a deep copy of initial state to detect local modifications
@@ -155,8 +160,11 @@ async function fetchCloudData() {
       inviteToken: inviteToken !== undefined ? inviteToken : null,
       messagesData: messagesData || []
     }));
+    console.log('[NV Learn] Tải dữ liệu xong. usersData.length =', usersData.length);
   } catch(e) {
-    console.error("Lỗi tải dữ liệu từ Firebase:", e);
+    console.error('[NV Learn] LỖI FIRESTORE:', e.code, e.message);
+    // Ném lỗi lên để startup handler xử lý hiển thị
+    throw e;
   }
 }
 
@@ -2587,43 +2595,66 @@ function renderHistory() {
 // --- APP STARTUP ---
 // Khởi động Firebase, tải dữ liệu từ cloud, rồi mới chạy init()
 document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    // Hiện màn hình loading
-    const loadingEl = document.createElement('div');
-    loadingEl.id = 'app-loading-screen';
-    loadingEl.style.cssText = `
-      position: fixed; inset: 0; z-index: 9999;
-      background: var(--bg, #0f172a);
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 16px;
-    `;
-    loadingEl.innerHTML = `
-      <svg width="48" height="48" viewBox="0 0 36 36" fill="none">
-        <rect width="36" height="36" rx="10" fill="#4285F4"/>
-        <path d="M10 24 L18 10 L26 24" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-        <path d="M13 20 L23 20" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-      </svg>
-      <div style="color:#94a3b8; font-family:Inter,sans-serif; font-size:0.9rem;">Đang kết nối hệ thống...</div>
-      <div style="width:200px;height:3px;background:#1e293b;border-radius:2px;overflow:hidden;">
-        <div id="loading-bar" style="height:100%;width:30%;background:#4285F4;border-radius:2px;animation:loadSlide 1.2s ease-in-out infinite;"></div>
-      </div>
-      <style>@keyframes loadSlide{0%{width:10%;margin-left:0}50%{width:60%;margin-left:20%}100%{width:10%;margin-left:90%}}</style>
-    `;
-    document.body.appendChild(loadingEl);
+  // Tạo màn hình loading
+  const loadingEl = document.createElement('div');
+  loadingEl.id = 'app-loading-screen';
+  loadingEl.style.cssText = [
+    'position:fixed', 'inset:0', 'z-index:9999',
+    'background:#0f172a',
+    'display:flex', 'flex-direction:column',
+    'align-items:center', 'justify-content:center', 'gap:16px',
+    'font-family:Inter,sans-serif'
+  ].join(';');
+  loadingEl.innerHTML = [
+    '<svg width="48" height="48" viewBox="0 0 36 36" fill="none">',
+    '<rect width="36" height="36" rx="10" fill="#4285F4"/>',
+    '<path d="M10 24 L18 10 L26 24" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
+    '<path d="M13 20 L23 20" stroke="white" stroke-width="2.5" stroke-linecap="round"/>',
+    '</svg>',
+    '<div id="loading-msg" style="color:#94a3b8;font-size:0.9rem;">Đang kết nối Firebase...</div>',
+    '<div style="width:220px;height:3px;background:#1e293b;border-radius:2px;overflow:hidden;">',
+    '<div style="height:100%;width:30%;background:#4285F4;border-radius:2px;animation:nvLoadSlide 1.2s ease-in-out infinite;"></div>',
+    '</div>',
+    '<div id="loading-error" style="display:none;max-width:380px;background:#1e293b;border:1px solid #ef4444;border-radius:10px;padding:16px;text-align:center;">',
+    '<div style="color:#ef4444;font-weight:700;font-size:1rem;margin-bottom:8px;">⚠️ Không thể kết nối Firebase</div>',
+    '<div id="loading-error-msg" style="color:#94a3b8;font-size:0.8rem;margin-bottom:12px;word-break:break-all;"></div>',
+    '<button onclick="location.reload()" style="background:#4285F4;color:white;border:none;border-radius:6px;padding:8px 20px;cursor:pointer;font-size:0.85rem;">🔄 Thử lại</button>',
+    '</div>',
+    '<style>@keyframes nvLoadSlide{0%{width:10%;margin-left:0}50%{width:60%;margin-left:20%}100%{width:10%;margin-left:90%}}</style>'
+  ].join('');
+  document.body.appendChild(loadingEl);
 
+  try {
     // Bước 1: Khởi động Firebase SDK
+    console.log('[NV Learn] Bắt đầu khởi động...');
     initFirebase();
+    console.log('[NV Learn] Firebase SDK đã khởi động, projectId:', firebase.app().options.projectId);
 
     // Bước 2: Tải dữ liệu từ Firestore
     await fetchCloudData();
 
   } catch (e) {
-    console.error('Lỗi khởi động Firebase:', e);
-    // Nếu lỗi kết nối, vẫn chạy app với dữ liệu trống/mock
+    // Hiển thị lỗi ngay trên màn hình - không cần mở console
+    console.error('[NV Learn] LỖI KHỞI ĐỘNG:', e);
+    const errBox = document.getElementById('loading-error');
+    const errMsg = document.getElementById('loading-error-msg');
+    if (errBox && errMsg) {
+      const code = e.code || '';
+      let hint = '';
+      if (code === 'permission-denied') hint = '❌ Lỗi quyền truy cập (permission-denied). Cần cập nhật Firestore Rules.';
+      else if (code === 'unavailable') hint = '🌐 Không có kết nối mạng hoặc Firebase tạm thời không khả dụng.';
+      else if (code === 'resource-exhausted') hint = '📊 Đã hết quota miễn phí hôm nay. Thử lại sau 00:00 giờ (UTC).';
+      else hint = e.message || 'Lỗi không xác định';
+      errMsg.textContent = (code ? '[' + code + '] ' : '') + hint;
+      errBox.style.display = 'block';
+      document.getElementById('loading-msg').textContent = 'Kết nối thất bại';
+    }
+    // Vẫn tiếp tục chạy app sau 3 giây (với data rỗng)
+    await new Promise(r => setTimeout(r, 3000));
   } finally {
     // Bước 3: Xóa màn hình loading và chạy app
-    const loadingEl = document.getElementById('app-loading-screen');
-    if (loadingEl) loadingEl.remove();
+    const el = document.getElementById('app-loading-screen');
+    if (el) el.remove();
     init();
   }
 });
